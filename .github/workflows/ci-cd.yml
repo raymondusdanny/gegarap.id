@@ -1,0 +1,180 @@
+name: CI/CD
+
+# ---------------------------------------------------------------------------
+# Flow
+#   push / PR  ->  ci (lint + typecheck + build)            [gate]
+#   PR         ->  deploy-preview  (Vercel preview URL)
+#   push main  ->  migrate (Railway Postgres) -> deploy-production (Vercel)
+#
+# Deploys only run AFTER the ci gate passes, so a broken build never ships.
+# ---------------------------------------------------------------------------
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref to save CI minutes.
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ----------------------------------------------------------------------- #
+  # 1. CI GATE — install, lint, typecheck, build, (test if present)         #
+  # ----------------------------------------------------------------------- #
+  ci:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # `npm ci` runs the `postinstall` script -> `prisma generate`,
+      # so the Prisma client exists before typecheck/build.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          # The build does not query the DB (DB-backed pages are rendered
+          # per-request), but the Prisma pg adapter needs a well-formed URL
+          # string when `src/lib/prisma.ts` is imported. Use the real secret
+          # if available, otherwise a harmless placeholder for fork PRs.
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://placeholder:placeholder@localhost:5432/placeholder?schema=public' }}
+
+      - name: Test (skipped if no `test` script)
+        run: npm test --if-present
+
+  # ----------------------------------------------------------------------- #
+  # 2. DB MIGRATIONS — apply Prisma migrations to Railway Postgres          #
+  #    Runs only on push to main, after ci passes, before the app deploys.  #
+  # ----------------------------------------------------------------------- #
+  migrate:
+    name: Migrate Railway Postgres
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply migrations (prisma migrate deploy)
+        run: npm run db:migrate:deploy
+        env:
+          # Must be the Railway *public* connection URL (……proxy.rlwy.net),
+          # reachable from GitHub's runners.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # ----------------------------------------------------------------------- #
+  # 3. PRODUCTION DEPLOY — Vercel (full Next.js app: UI + API routes)       #
+  # ----------------------------------------------------------------------- #
+  deploy-production:
+    name: Deploy to Vercel (Production)
+    needs: migrate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel project settings & env (production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (Vercel)
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt artifacts to Vercel
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Production deploy::$url"
+
+  # ----------------------------------------------------------------------- #
+  # 4. PREVIEW DEPLOY — every PR gets an isolated Vercel preview URL        #
+  # ----------------------------------------------------------------------- #
+  deploy-preview:
+    name: Deploy to Vercel (Preview)
+    needs: ci
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+
+      - name: Pull Vercel project settings & env (preview)
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (Vercel)
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy preview to Vercel
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Preview deploy::$url"
+
+      - name: Comment preview URL on PR
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = '${{ steps.deploy.outputs.url }}';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Preview deployed:** ${url}`,
+            });
