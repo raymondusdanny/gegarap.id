@@ -16,15 +16,15 @@ const columns = [
     links: [
       { label: 'Jadi Mitra', href: '/onboarding' },
       { label: 'Dashboard', href: '/dashboard' },
-      { label: 'Pusat Bantuan', href: '#' },
+      { label: 'Pusat Bantuan', href: '/help' },
     ],
   },
   {
     title: 'Perusahaan',
     links: [
-      { label: 'Tentang Kami', href: '#' },
-      { label: 'Kebijakan Privasi', href: '#' },
-      { label: 'Syarat & Ketentuan', href: '#' },
+      { label: 'Tentang Kami', href: '/about' },
+      { label: 'Kebijakan Privasi', href: '/privacy-policy' },
+      { label: 'Syarat & Ketentuan', href: '/terms' },
     ],
   },
 ];

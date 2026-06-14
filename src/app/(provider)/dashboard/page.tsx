@@ -1,10 +1,9 @@
 import type { Metadata } from 'next';
-import { Wallet, CheckCircle2, Clock, Briefcase } from 'lucide-react';
+import { CheckCircle2, Clock, Briefcase } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { Badge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/ui/StatCard';
 import { JobsTable, type JobRow } from '@/components/dashboard/JobsTable';
-import { formatCurrency } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Dashboard Tukang' };
 export const dynamic = 'force-dynamic';
@@ -28,7 +27,6 @@ export default async function ProviderDashboard() {
 
   const completed = jobs.filter((j) => j.status === 'COMPLETED');
   const ongoing = jobs.filter((j) => j.status === 'ONGOING' || j.status === 'PENDING');
-  const estimatedRevenue = jobs.reduce((s, j) => s + j.providerPayout, 0);
 
   return (
     <div className="container py-10 sm:py-14">
@@ -50,13 +48,7 @@ export default async function ProviderDashboard() {
         </div>
       </div>
 
-      <div className="mb-10 grid grid-cols-1 gap-5 sm:grid-cols-3">
-        <StatCard
-          label="Estimasi Pendapatan"
-          value={formatCurrency(estimatedRevenue)}
-          icon={<Wallet className="h-5 w-5" />}
-          trend={{ value: 'Total payout dari semua order', positive: true }}
-        />
+      <div className="mb-10 grid grid-cols-1 gap-5 sm:grid-cols-2">
         <StatCard
           label="Pekerjaan Selesai"
           value={String(completed.length)}

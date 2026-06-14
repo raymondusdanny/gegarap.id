@@ -7,71 +7,73 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(uuid())
-  name          String
-  email         String   @unique
-  passwordHash  String?
-  phoneNumber   String?
-  role          String   @default("CUSTOMER") // CUSTOMER, PROVIDER, ADMIN
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  providerProfile ProviderProfile?
+  id              String           @id @default(uuid())
+  name            String
+  email           String           @unique
+  // Canonical, normalised WhatsApp login identity (format: 628xxxxxxxxxx).
+  // Set when a user authenticates via WhatsApp OTP. Distinct from the legacy
+  // free-form `phoneNumber` used for display/contact.
+  phone           String?          @unique
+  passwordHash    String?
+  phoneNumber     String?
+  role            String           @default("CUSTOMER")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   jobsAsCustomer  Job[]            @relation("CustomerJobs")
+  providerProfile ProviderProfile?
+}
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
 }
 
 model ProviderProfile {
-  id             String  @id @default(uuid())
-  userId         String  @unique
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id             String   @id @default(uuid())
+  userId         String   @unique
   category       String
   dailyRate      Float
   goPayNumber    String?
-  isVerified     Boolean @default(false)
-
-  // Profile enrichment (powers the premium UI)
+  isVerified     Boolean  @default(false)
   bio            String?
   avatarUrl      String?
-  rating         Float   @default(0)
-  ratingCount    Int     @default(0)
-  completedJobs  Int     @default(0)
-
+  rating         Float    @default(0)
+  ratingCount    Int      @default(0)
+  completedJobs  Int      @default(0)
   latitude       Float?
   longitude      Float?
-
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  jobsAsProvider Job[]   @relation("ProviderJobs")
+  jobsAsProvider Job[]    @relation("ProviderJobs")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([category])
   @@index([isVerified])
 }
 
 model Job {
-  id                 String    @id @default(uuid())
+  id                 String          @id @default(uuid())
   customerId         String
   providerProfileId  String
-
-  customer           User             @relation("CustomerJobs", fields: [customerId], references: [id])
-  provider           ProviderProfile  @relation("ProviderJobs", fields: [providerProfileId], references: [id])
-
-  status             String @default("PENDING") // PENDING, ONGOING, COMPLETED, CANCELLED
-
+  status             String          @default("PENDING")
   estimatedDays      Int
   customerAddress    String
   customerWaNumber   String
   notes              String?
-  isConsentGiven     Boolean   @default(true)
-
+  isConsentGiven     Boolean         @default(true)
   totalFee           Float
   platformCommission Float
   providerPayout     Float
-
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  customer           User            @relation("CustomerJobs", fields: [customerId], references: [id])
+  provider           ProviderProfile @relation("ProviderJobs", fields: [providerProfileId], references: [id])
   payments           Payment[]
 
   @@index([providerProfileId])
@@ -81,13 +83,11 @@ model Job {
 model Payment {
   id            String   @id @default(uuid())
   jobId         String
-  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
-
   amount        Float
-  type          String   // DP, FULL_SETTLEMENT
-  status        String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  type          String
+  status        String   @default("PENDING")
   midtransTrxId String?  @unique
-
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  job           Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
 }

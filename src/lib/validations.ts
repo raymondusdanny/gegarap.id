@@ -40,6 +40,14 @@ export const providerSchema = z.object({
 
 export type ProviderInput = z.infer<typeof providerSchema>;
 
+export const contactSchema = z.object({
+  name: z.string().trim().min(2, 'Nama minimal 2 karakter').max(80),
+  email: z.string().trim().email('Email tidak valid'),
+  message: z.string().trim().min(10, 'Pesan terlalu pendek (min. 10 karakter)').max(1000),
+});
+
+export type ContactInput = z.infer<typeof contactSchema>;
+
 /** Flattens a ZodError into a `{ field: message }` map for the UI. */
 export function fieldErrors(error: z.ZodError) {
   const out: Record<string, string> = {};
