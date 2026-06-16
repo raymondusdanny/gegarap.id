@@ -28,11 +28,19 @@ export const metadata: Metadata = {
     'Temukan tukang ledeng, listrik, dan kebersihan profesional & terverifikasi di sekitar Anda. Booking mudah, pembayaran aman via DP.',
   keywords: ['jasa tukang', 'tukang ledeng', 'tukang listrik', 'Yogyakarta', 'gegarap'],
   metadataBase: new URL('https://gegarap.id'),
+  alternates: { canonical: '/' },
   openGraph: {
     title: 'gegarap.id — Jasa Tukang Terpercaya di Yogyakarta',
     description: 'Tukang terverifikasi di sekitar Anda. Cepat, aman, terpercaya.',
+    url: 'https://gegarap.id',
+    siteName: 'gegarap.id',
     locale: 'id_ID',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'gegarap.id — Jasa Tukang Terpercaya di Yogyakarta',
+    description: 'Tukang terverifikasi di sekitar Anda. Cepat, aman, terpercaya.',
   },
 };
 

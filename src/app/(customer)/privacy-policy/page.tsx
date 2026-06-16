@@ -1,14 +1,15 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { ShieldCheck } from 'lucide-react';
 import { Prose } from '@/components/legal/Prose';
 import { SITE } from '@/lib/site';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Kebijakan Privasi',
   description:
     'Bagaimana gegarap.id mengumpulkan, menggunakan, dan melindungi data pribadi Anda.',
-};
+  path: '/privacy-policy',
+});
 
 const EFFECTIVE_DATE = '14 Juni 2026';
 

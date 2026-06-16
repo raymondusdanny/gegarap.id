@@ -42,7 +42,7 @@ export function ProviderCard({ provider }: { provider: ProviderListItem }) {
 
       <div className="mt-5 flex items-end justify-between border-t border-border pt-5">
         <div>
-          <p className="text-xs text-muted-foreground">Tarif harian</p>
+          <p className="text-xs text-muted-foreground">Estimasi mulai dari</p>
           <p className="text-xl font-extrabold tracking-tight text-foreground">
             {formatCurrency(provider.dailyRate)}
           </p>
@@ -51,7 +51,7 @@ export function ProviderCard({ provider }: { provider: ProviderListItem }) {
           href={`/book/${provider.id}`}
           className={buttonVariants({ variant: 'primary', size: 'sm' })}
         >
-          Booking
+          Booking Sekarang
           <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
         </Link>
       </div>

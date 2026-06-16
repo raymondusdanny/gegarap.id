@@ -1,13 +1,14 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { Shield, MapPin, Eye } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/Button';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Tentang Kami',
   description:
     'gegarap.id lahir di Jogja untuk menghubungkan warga dengan tukang terverifikasi secara hyperlocal.',
-};
+  path: '/about',
+});
 
 const values = [
   {

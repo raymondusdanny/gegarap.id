@@ -1,13 +1,14 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import { Prose } from '@/components/legal/Prose';
 import { SITE } from '@/lib/site';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Syarat & Ketentuan',
   description: 'Ketentuan penggunaan platform gegarap.id untuk pengguna dan mitra tukang.',
-};
+  path: '/terms',
+});
 
 const EFFECTIVE_DATE = '14 Juni 2026';
 

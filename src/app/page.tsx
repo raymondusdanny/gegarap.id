@@ -17,6 +17,10 @@ import { buttonVariants } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import MapWrapper from '@/components/map/MapWrapper';
 import { PROVIDER_MAP_SELECT, toMapProvider } from '@/lib/providers';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { localBusinessJsonLd } from '@/lib/seo';
+import { Reveal } from '@/components/motion/Reveal';
+import { CountUp } from '@/components/motion/CountUp';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +67,7 @@ export default async function Home() {
     select: {
       ...PROVIDER_MAP_SELECT,
       rating: true,
+      ratingCount: true,
       completedJobs: true,
     },
     orderBy: { rating: 'desc' },
@@ -71,11 +76,20 @@ export default async function Home() {
   const mapProviders = providers.map(toMapProvider);
 
   const count = providers.length;
-  const avgRating = count > 0 ? providers.reduce((s, p) => s + p.rating, 0) / count : 0;
+  const totalReviews = providers.reduce((s, p) => s + p.ratingCount, 0);
+  // Review-weighted average so the structured-data rating reflects real reviews.
+  const avgRating =
+    totalReviews > 0
+      ? providers.reduce((s, p) => s + p.rating * p.ratingCount, 0) / totalReviews
+      : count > 0
+        ? providers.reduce((s, p) => s + p.rating, 0) / count
+        : 0;
   const totalJobs = providers.reduce((s, p) => s + p.completedJobs, 0);
 
   return (
     <div className="overflow-hidden">
+      <JsonLd data={localBusinessJsonLd({ ratingValue: avgRating, reviewCount: totalReviews })} />
+
       {/* ===== Hero ===== */}
       <section className="relative">
         <div className="absolute inset-0 -z-10 hero-glow" />
@@ -84,7 +98,7 @@ export default async function Home() {
           <div className="mx-auto max-w-3xl text-center">
             <div className="mb-6 inline-flex animate-fade-down items-center gap-2 rounded-full border border-primary/20 bg-primary-light/60 px-4 py-1.5 text-sm font-semibold text-primary-800">
               <Sparkles className="h-4 w-4" />
-              Platform jasa tukang #1 di Yogyakarta
+              Platform jasa tukang hyper-local terpercaya di Yogyakarta
             </div>
 
             <h1 className="animate-fade-up text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-6xl">
@@ -134,8 +148,14 @@ export default async function Home() {
                     <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
-                <span className="font-semibold text-foreground">{avgRating.toFixed(1)}</span>
-                <span className="text-muted-foreground">dari {totalJobs}+ pekerjaan</span>
+                <CountUp
+                  value={avgRating}
+                  decimals={1}
+                  className="font-semibold text-foreground"
+                />
+                <span className="text-muted-foreground">
+                  dari <CountUp value={totalJobs} suffix="+" /> pekerjaan
+                </span>
               </div>
             </div>
           </div>
@@ -144,20 +164,23 @@ export default async function Home() {
 
       {/* ===== Stats ===== */}
       <section className="container -mt-6">
-        <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
+        <Reveal className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
           {[
-            { value: `${count}+`, label: 'Tukang terverifikasi' },
-            { value: avgRating.toFixed(1), label: 'Rating rata-rata' },
-            { value: `${totalJobs}+`, label: 'Pekerjaan selesai' },
+            { value: count, decimals: 0, suffix: '+', label: 'Tukang terverifikasi' },
+            { value: avgRating, decimals: 1, suffix: '', label: 'Rating rata-rata' },
+            { value: totalJobs, decimals: 0, suffix: '+', label: 'Pekerjaan selesai' },
           ].map((s) => (
             <div key={s.label} className="text-center">
-              <p className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl">
-                {s.value}
-              </p>
+              <CountUp
+                value={s.value}
+                decimals={s.decimals}
+                suffix={s.suffix}
+                className="text-2xl font-extrabold tracking-tight text-foreground sm:text-4xl"
+              />
               <p className="mt-1 text-xs text-muted-foreground sm:text-sm">{s.label}</p>
             </div>
           ))}
-        </div>
+        </Reveal>
       </section>
 
       {/* ===== Features ===== */}
@@ -171,9 +194,10 @@ export default async function Home() {
           </p>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
-          {features.map((f) => (
-            <div
+          {features.map((f, i) => (
+            <Reveal
               key={f.title}
+              delay={i * 90}
               className="hover-lift rounded-2xl border border-border bg-card p-7 shadow-card"
             >
               <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-light text-primary">
@@ -181,7 +205,7 @@ export default async function Home() {
               </div>
               <h3 className="text-lg font-bold text-foreground">{f.title}</h3>
               <p className="mt-2 leading-relaxed text-muted-foreground">{f.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -197,9 +221,15 @@ export default async function Home() {
               Tiga langkah sederhana sampai beres.
             </p>
           </div>
-          <div className="grid gap-8 md:grid-cols-3">
+          <div className="relative grid gap-8 md:grid-cols-3">
+            {/* Connector line drawn in on scroll (md+, behind the step icons) */}
+            <Reveal
+              variant="line"
+              delay={150}
+              className="absolute left-[16.6%] right-[16.6%] top-8 hidden h-0.5 bg-gradient-to-r from-primary/20 via-primary/60 to-primary/20 md:block"
+            />
             {steps.map((s, i) => (
-              <div key={s.title} className="relative text-center">
+              <Reveal key={s.title} delay={i * 120} className="relative text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-card text-primary shadow-card ring-1 ring-border">
                   <s.icon className="h-7 w-7" />
                 </div>
@@ -208,7 +238,7 @@ export default async function Home() {
                 </div>
                 <h3 className="mt-3 text-lg font-bold text-foreground">{s.title}</h3>
                 <p className="mt-2 leading-relaxed text-muted-foreground">{s.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -222,7 +252,7 @@ export default async function Home() {
               Tukang di sekitar Anda
             </h2>
             <p className="mt-2 text-lg text-muted-foreground">
-              Pilih pin pada peta untuk melihat profil dan tarif harian.
+              Pilih pin pada peta untuk melihat profil dan estimasi tarif.
             </p>
           </div>
           <span className="inline-flex w-fit items-center gap-2 rounded-full bg-primary-light px-3.5 py-1.5 text-sm font-semibold text-primary-800">
@@ -240,7 +270,7 @@ export default async function Home() {
       <section className="container pb-20">
         <div className="relative overflow-hidden rounded-3xl bg-slate-900 px-6 py-14 text-center shadow-elevated sm:px-12 sm:py-20">
           <div className="absolute inset-0 -z-0 opacity-40 hero-glow" />
-          <div className="relative z-10 mx-auto max-w-2xl">
+          <Reveal className="relative z-10 mx-auto max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-1.5 text-sm font-semibold text-white">
               <Wallet className="h-4 w-4" />
               Penghasilan tambahan menanti
@@ -259,7 +289,7 @@ export default async function Home() {
               Mulai Daftar Sekarang
               <ArrowRight className="h-5 w-5" />
             </Link>
-          </div>
+          </Reveal>
         </div>
       </section>
     </div>

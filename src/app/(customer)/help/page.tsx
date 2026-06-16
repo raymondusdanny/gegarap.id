@@ -1,13 +1,14 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { ChevronDown, MessageCircle, Mail, LifeBuoy } from 'lucide-react';
 import { ContactForm } from './ContactForm';
 import { SITE } from '@/lib/site';
 import { buildWALink } from '@/lib/utils';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Pusat Bantuan',
   description: 'Pertanyaan umum seputar pemesanan, DP, keamanan data, dan kemitraan gegarap.id.',
-};
+  path: '/help',
+});
 
 const faqs = [
   {

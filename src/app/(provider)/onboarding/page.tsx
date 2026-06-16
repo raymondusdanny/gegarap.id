@@ -1,12 +1,13 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
 import { ShieldCheck, TrendingUp, Users } from 'lucide-react';
 import OnboardingForm from './OnboardingForm';
 
-export const metadata: Metadata = {
+export const metadata = pageMetadata({
   title: 'Daftar sebagai Tukang',
   description:
     'Bergabung sebagai mitra tukang di gegarap.id dan dapatkan pelanggan baru di Yogyakarta.',
-};
+  path: '/onboarding',
+});
 
 const perks = [
   { icon: Users, label: 'Akses ribuan pelanggan baru' },

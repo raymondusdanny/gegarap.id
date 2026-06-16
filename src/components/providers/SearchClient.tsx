@@ -1,10 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import { Search, SlidersHorizontal, SearchX } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { buttonVariants } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { ProviderListItem } from '@/lib/types';
 import { ProviderCard } from './ProviderCard';
@@ -105,9 +107,12 @@ export function SearchClient({
         )}
       </p>
 
-      {/* Results */}
+      {/* Results — keyed by category so switching chips replays the stagger */}
       {results.length > 0 ? (
-        <div className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div
+          key={category}
+          className="mt-5 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+        >
           {results.map((p, i) => (
             <div
               key={p.id}
@@ -122,8 +127,17 @@ export function SearchClient({
         <EmptyState
           className="mt-6"
           icon={<SearchX className="h-7 w-7" />}
-          title="Tidak ada tukang yang cocok"
-          description="Coba ubah kata kunci pencarian atau pilih kategori lain untuk menemukan tukang yang Anda butuhkan."
+          title="Belum ada tukang yang cocok"
+          description={
+            category === 'Semua'
+              ? 'Coba ubah kata kunci pencarian untuk menemukan tukang yang Anda butuhkan.'
+              : `Belum ada tukang ${category} di area ini. Jadilah yang pertama menawarkan jasa di gegarap.id.`
+          }
+          action={
+            <Link href="/onboarding" className={buttonVariants({ variant: 'primary' })}>
+              Daftar jadi tukang pertama di area ini
+            </Link>
+          }
         />
       )}
     </div>

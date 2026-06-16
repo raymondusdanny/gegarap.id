@@ -104,6 +104,11 @@ const config: Config = {
         'spin-slow': {
           to: { transform: 'rotate(360deg)' },
         },
+        shake: {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%, 60%': { transform: 'translateX(-5px)' },
+          '40%, 80%': { transform: 'translateX(5px)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.5s ease-out both',
@@ -114,6 +119,7 @@ const config: Config = {
         shimmer: 'shimmer 1.8s infinite',
         float: 'float 6s ease-in-out infinite',
         'spin-slow': 'spin-slow 1s linear infinite',
+        shake: 'shake 0.4s ease-in-out',
       },
     },
   },

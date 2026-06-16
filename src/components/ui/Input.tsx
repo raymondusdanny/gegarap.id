@@ -22,7 +22,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           fieldBase,
           'h-11',
           leftIcon && 'pl-11',
-          invalid && 'border-red-400 focus:border-red-500 focus:ring-red-500/15',
+          invalid && 'animate-shake border-red-400 focus:border-red-500 focus:ring-red-500/15',
           className
         )}
         {...props}
@@ -53,7 +53,7 @@ export const Textarea = React.forwardRef<
     className={cn(
       fieldBase,
       'min-h-[96px] resize-y py-3 leading-relaxed',
-      invalid && 'border-red-400 focus:border-red-500 focus:ring-red-500/15',
+      invalid && 'animate-shake border-red-400 focus:border-red-500 focus:ring-red-500/15',
       className
     )}
     {...props}
