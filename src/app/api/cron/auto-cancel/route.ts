@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { isAuthorizedCron } from '@/lib/cron-auth';
 import { applyTransition } from '@/lib/payment-state';
+import { notifyPaymentStatus } from '@/lib/notifications';
 import { logEvent } from '@/lib/logger';
 
 /** Don't let a stale build cache a response; always run fresh. */
@@ -36,6 +37,7 @@ export async function GET(req: Request) {
       );
       if (res.changed) {
         await prisma.job.update({ where: { id: p.jobId }, data: { status: 'CANCELLED' } });
+        await notifyPaymentStatus(p.id, 'EXPIRED');
         expired++;
       }
     } catch (e) {

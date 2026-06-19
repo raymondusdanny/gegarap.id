@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/admin-guard';
 import { transitionPayment, InvalidTransitionError, type PaymentStatus } from '@/lib/payment-state';
 import { releaseAndSettle } from '@/lib/payout';
 import { recordAudit, AuditAction } from '@/lib/audit';
+import { refundViaGateway } from '@/lib/midtrans';
 import { sendWAMessage } from '@/lib/whatsapp';
 import { logEvent } from '@/lib/logger';
 
@@ -77,7 +78,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           prisma.job.update({ where: { id: job.id }, data: { status: 'CANCELLED' } }),
         ]);
 
-        // TODO(Phase 7): call the gateway refund API to return the money.
+        // Return the money via the gateway (mock/no-op without real keys).
+        await refundViaGateway({
+          orderId: payment.midtransOrderId,
+          paymentId: payment.id,
+          amount: refundAmount,
+          reason: `admin approve: ${input.reason}`,
+        });
         logEvent('refund.resolved', { paymentId: payment.id, by: admin.id, outcome: 'REFUNDED', refundAmount });
         await recordAudit({
           actorId: admin.id,
@@ -100,8 +107,9 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       // REJECT — side with the provider.
       const to: PaymentStatus = current === 'DISPUTED' ? 'RELEASED' : 'REFUND_REJECTED';
       if (to === 'RELEASED') {
-        // Release escrow + settle the provider payout.
-        await releaseAndSettle(payment.id, adminId, `admin reject refund (sided with provider): ${input.reason}`);
+        // Release escrow + settle the provider payout. Suppress the generic
+        // RELEASED notice — we send a tailored dispute-ruling message below.
+        await releaseAndSettle(payment.id, adminId, `admin reject refund (sided with provider): ${input.reason}`, { notify: false });
       } else {
         await transitionPayment({ paymentId: payment.id, to, triggeredBy: adminId, reason: `admin reject refund: ${input.reason}` });
       }

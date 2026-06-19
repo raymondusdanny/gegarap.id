@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth';
 import { Badge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/ui/StatCard';
 import { JobsTable, type JobRow } from '@/components/dashboard/JobsTable';
+import { isContactUnlocked } from '@/lib/authz';
 import { formatCurrency } from '@/lib/utils';
 
 export const metadata: Metadata = { title: 'Dashboard Tukang' };
@@ -32,23 +33,31 @@ export default async function ProviderDashboard() {
     orderBy: { createdAt: 'desc' },
   });
 
-  const rows: JobRow[] = jobs.map((j) => ({
-    id: j.id,
-    customerName: j.customer.name,
-    customerWaNumber: j.customerWaNumber,
-    customerAddress: j.customerAddress,
-    estimatedDays: j.estimatedDays,
-    totalFee: j.totalFee,
-    status: j.status,
-    createdAt: j.createdAt.toISOString(),
-  }));
+  // PROTECTED tier (Bagian 3): the customer's phone + full address open to the
+  // provider only AFTER the DP is paid. Before that they're withheld, so an
+  // unpaid/pending booking never leaks a customer's contact to the client.
+  const rows: JobRow[] = jobs.map((j) => {
+    const contactUnlocked = isContactUnlocked(j.payment?.status);
+    return {
+      id: j.id,
+      customerName: j.customer.name,
+      customerWaNumber: contactUnlocked ? j.customerWaNumber : null,
+      customerAddress: contactUnlocked ? j.customerAddress : null,
+      estimatedDays: j.estimatedDays,
+      totalFee: j.totalFee,
+      status: j.status,
+      createdAt: j.createdAt.toISOString(),
+    };
+  });
 
   const stats = {
     completed: jobs.filter((j) => j.status === 'COMPLETED').length,
     active: jobs.filter((j) => j.status === 'CONFIRMED' || j.status === 'IN_PROGRESS').length,
+    // Earnings = disbursed payouts. Post-overhaul the released status is RELEASED
+    // (the old 'DISBURSED' no longer exists), with the amount on disbursedAmount.
     earnings: jobs
-      .filter((j) => j.payment?.status === 'DISBURSED')
-      .reduce((sum, j) => sum + (j.payment?.disbursedAmount ?? 0), 0),
+      .filter((j) => j.payment?.status === 'RELEASED')
+      .reduce((sum, j) => sum + (j.payment?.disbursedAmount ?? j.payment?.providerAmount ?? 0), 0),
   };
 
   return (

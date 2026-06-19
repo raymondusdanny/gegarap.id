@@ -8,6 +8,7 @@ import { calculateBookingFinancials } from '@/lib/calculations';
 import { resolveFee } from '@/lib/fee-config';
 import { createSnapToken } from '@/lib/midtrans';
 import { sendWAMessage } from '@/lib/whatsapp';
+import { checkBookingVelocity, deviceIdFrom, recordDeviceAndCheck } from '@/lib/fraud';
 
 export async function POST(req: Request) {
   return handle(async () => {
@@ -16,6 +17,17 @@ export async function POST(req: Request) {
     if (!session?.user?.id) {
       return fail('Harus login untuk booking.', 401);
     }
+
+    // 1b. Velocity guard (Bagian 8): cap simultaneous unpaid bookings per account.
+    const velocity = await checkBookingVelocity(session.user.id);
+    if (velocity.blocked) {
+      return fail(
+        `Anda punya ${velocity.activeCount} booking yang belum dibayar. Selesaikan atau batalkan dulu sebelum membuat booking baru.`,
+        429
+      );
+    }
+    // Device-fingerprint observation (best-effort, advisory flag only).
+    await recordDeviceAndCheck(deviceIdFrom(req), session.user.id);
 
     // 2. Validate input (identity comes from the session, not the body).
     const body = await req.json().catch(() => null);

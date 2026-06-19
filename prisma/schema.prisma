@@ -291,6 +291,20 @@ model FraudFlag {
   @@index([type])
 }
 
+// ─── DEVICE EVENT ──────────────────────────────────────────────────────────
+// Lightweight (device, account) observation log feeding the device-fingerprint
+// fraud check (Bagian 8). `deviceId` is a hash (x-device-id header or IP+UA), so
+// no raw PII is stored. Append-only; old rows can be pruned on a schedule.
+model DeviceEvent {
+  id        String   @id @default(uuid())
+  deviceId  String // sha256 hash, 32 chars
+  userId    String
+  createdAt DateTime @default(now())
+
+  @@index([deviceId, createdAt])
+  @@index([userId])
+}
+
 // ─── WEBHOOK EVENT ─────────────────────────────────────────────────────────
 // Idempotency ledger for inbound gateway notifications. The unique constraint
 // makes duplicate retries a no-op (insert fails → we ack 200 without reprocessing).

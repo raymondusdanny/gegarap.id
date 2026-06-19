@@ -3,7 +3,8 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { ok, fail, handle } from '@/lib/api';
 import { transitionPayment, InvalidTransitionError } from '@/lib/payment-state';
-import { sendWAMessage } from '@/lib/whatsapp';
+import { notifyPaymentStatus } from '@/lib/notifications';
+import { assertProviderOwnsJob } from '@/lib/authz';
 import { logEvent } from '@/lib/logger';
 
 /**
@@ -18,10 +19,12 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
 
     const job = await prisma.job.findUnique({
       where: { id: params.id },
-      include: { payment: true, provider: { select: { userId: true } }, customer: { select: { phone: true } } },
+      include: { payment: true, provider: { select: { userId: true } } },
     });
     if (!job) return fail('Booking tidak ditemukan.', 404);
-    if (job.provider.userId !== session.user.id) return fail('Akses ditolak.', 403);
+    // Ownership policy (service-layer second line): provider may only start their
+    // own assigned job. Throws ForbiddenError → 403 via handle().
+    assertProviderOwnsJob({ customerId: job.customerId, providerUserId: job.provider.userId }, session.user.id);
     if (!job.payment || job.payment.status !== 'PAID') return fail('Pembayaran belum dikonfirmasi.', 400);
     if (job.status !== 'CONFIRMED') return fail('Pekerjaan tidak dalam status untuk dimulai.', 400);
 
@@ -38,13 +41,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     }
     await prisma.job.update({ where: { id: job.id }, data: { status: 'IN_PROGRESS' } });
     logEvent('payment.status_changed', { paymentId: job.payment.id, from: 'PAID', to: 'HELD' });
-
-    if (job.customer.phone) {
-      await sendWAMessage(
-        job.customer.phone,
-        `🔧 *Pekerjaan Dimulai*\n\nTukang telah mulai mengerjakan booking #${job.id.slice(-6).toUpperCase()}.\nDana Anda ditahan aman oleh sistem hingga pekerjaan selesai.`
-      );
-    }
+    await notifyPaymentStatus(job.payment.id, 'HELD');
 
     return ok({ jobStatus: 'IN_PROGRESS', paymentStatus: 'HELD' });
   })();

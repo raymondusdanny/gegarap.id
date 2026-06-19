@@ -6,7 +6,8 @@ import { ok, fail, handle } from '@/lib/api';
 import { evaluateRefund, DEFAULT_REFUND_POLICY } from '@/lib/refund-policy';
 import { transitionPayment, InvalidTransitionError } from '@/lib/payment-state';
 import { recordAudit, AuditAction } from '@/lib/audit';
-import { sendWAMessage } from '@/lib/whatsapp';
+import { notifyPaymentStatus } from '@/lib/notifications';
+import { refundViaGateway } from '@/lib/midtrans';
 import { logEvent } from '@/lib/logger';
 
 const refundSchema = z.object({
@@ -34,7 +35,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const job = await prisma.job.findUnique({
       where: { id: params.id },
-      include: { payment: true, provider: { include: { user: true } }, customer: true },
+      include: { payment: true },
     });
     if (!job || job.customerId !== session.user.id) return fail('Booking tidak ditemukan.', 404);
     if (!job.payment) return fail('Tidak ada pembayaran untuk booking ini.', 400);
@@ -66,9 +67,6 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       scenario: decision.scenario,
       outcome: decision.outcome,
     });
-
-    const notifyProvider = (msg: string) =>
-      job.provider.user.phone ? sendWAMessage(job.provider.user.phone, msg) : Promise.resolve();
 
     // NO_PAYMENT: nothing captured. Cancel the booking if still pending.
     if (decision.outcome === 'NOOP') {
@@ -145,7 +143,13 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         });
         await prisma.job.update({ where: { id: job.id }, data: { status: 'CANCELLED' } });
 
-        // TODO(Phase 7): call the gateway refund API to actually return the money.
+        // Return the money via the gateway (mock/no-op without real keys).
+        await refundViaGateway({
+          orderId: payment.midtransOrderId,
+          paymentId: payment.id,
+          amount: decision.refundAmount,
+          reason: `auto-refund ${decision.scenario}`,
+        });
         logEvent('refund.resolved', {
           paymentId: payment.id,
           outcome: 'REFUNDED',
@@ -158,13 +162,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
           targetId: payment.id,
           metadata: { auto: true, scenario: decision.scenario, refundAmount: decision.refundAmount },
         });
-        await notifyProvider(
-          `ℹ️ *Pembatalan Pekerjaan*\n\nBooking #${job.id.slice(-6).toUpperCase()} dibatalkan customer.\n` +
-            `${decision.reason}\n` +
-            (decision.providerCompensation > 0
-              ? `Kompensasi untuk Anda: Rp ${decision.providerCompensation.toLocaleString('id-ID')}.`
-              : '')
-        );
+        await notifyPaymentStatus(payment.id, 'REFUNDED', {
+          refundAmount: decision.refundAmount,
+          providerCompensation: decision.providerCompensation,
+          reason: decision.reason,
+        });
         return ok({ scenario: decision.scenario, outcome: 'REFUNDED', refundAmount: decision.refundAmount, message: decision.reason });
       }
 
@@ -175,10 +177,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
         triggeredBy: session.user.id,
         reason: input.reason,
       });
-      await notifyProvider(
-        `⚠️ *Ada Komplain pada Pekerjaan*\n\nBooking #${job.id.slice(-6).toUpperCase()} sedang ditinjau tim kami.\n` +
-          `Kami akan menghubungi Anda. Dana ditahan sementara hingga peninjauan selesai (estimasi ${DEFAULT_REFUND_POLICY.adminSlaHours} jam).`
-      );
+      await notifyPaymentStatus(payment.id, 'DISPUTED', { reason: input.reason });
       return ok({ scenario: decision.scenario, outcome: 'DISPUTED', refundAmount: 0, message: decision.reason });
     } catch (e) {
       if (e instanceof InvalidTransitionError) {

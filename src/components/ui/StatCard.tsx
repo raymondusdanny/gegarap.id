@@ -7,12 +7,15 @@ export function StatCard({
   value,
   icon,
   trend,
+  hint,
   className,
 }: {
   label: string;
   value: string;
   icon?: React.ReactNode;
   trend?: { value: string; positive?: boolean };
+  /** Small muted line under the value (e.g. a breakdown). */
+  hint?: string;
   className?: string;
 }) {
   return (
@@ -36,6 +39,7 @@ export function StatCard({
           {trend.value}
         </p>
       )}
+      {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </Card>
   );
 }

@@ -2,13 +2,17 @@ import { NextResponse } from 'next/server';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { sendWAMessage } from '@/lib/whatsapp';
 import {
   applyTransition,
   InvalidTransitionError,
   ConcurrentTransitionError,
 } from '@/lib/payment-state';
-import { logEvent, logAlert } from '@/lib/logger';
+import { logEvent, logAlert, notifyOps } from '@/lib/logger';
+import { notifyPaymentStatus } from '@/lib/notifications';
+
+/** Escalate to ops if signature failures spike (Bagian 10: >5 in 10 minutes). */
+const SIG_FAIL_WINDOW_MS = 10 * 60 * 1000;
+const SIG_FAIL_ESCALATE = 5;
 
 /** Midtrans notification signature = sha512(orderId + statusCode + grossAmount + serverKey). */
 function verifySignature(
@@ -47,22 +51,6 @@ async function recordWebhook(
   } catch (e) {
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002')) throw e;
   }
-}
-
-async function notifyCustomerPaid(jobId: string): Promise<void> {
-  const job = await prisma.job.findUnique({
-    where: { id: jobId },
-    include: { customer: true, provider: { include: { user: true } } },
-  });
-  if (!job?.customer.phone) return;
-  await sendWAMessage(
-    job.customer.phone,
-    `✅ *Pembayaran DP Diterima!*\n\n` +
-      `Booking #${job.id.slice(-6).toUpperCase()} dikonfirmasi.\n` +
-      `Tukang: ${job.provider.user.name}\n` +
-      (job.scheduledDate ? `Jadwal: ${job.scheduledDate.toLocaleDateString('id-ID')}\n` : '') +
-      `\nTukang akan segera menghubungi Anda. 🔧`
-  );
 }
 
 export async function POST(req: Request) {
@@ -108,6 +96,18 @@ export async function POST(req: Request) {
   if (!sigValid) {
     logAlert('WEBHOOK_SIGNATURE_INVALID', { order_id });
     await recordWebhook(externalId, eventType, false, body);
+    // Spike of bad signatures = likely replay/attack — page ops (Bagian 10).
+    const recentBad = await prisma.webhookEvent.count({
+      where: {
+        gateway: 'MIDTRANS',
+        signatureValid: false,
+        processedAt: { gte: new Date(Date.now() - SIG_FAIL_WINDOW_MS) },
+      },
+    });
+    if (recentBad > SIG_FAIL_ESCALATE) {
+      logAlert('WEBHOOK_SIGNATURE_INVALID_SPIKE', { count: recentBad, windowMin: 10 });
+      await notifyOps('WEBHOOK_SIGNATURE_INVALID_SPIKE', { count: recentBad, windowMin: 10 });
+    }
     return NextResponse.json({ ok: true, ignored: 'invalid signature' });
   }
   logEvent('webhook.verified', { order_id });
@@ -123,6 +123,13 @@ export async function POST(req: Request) {
   const gross = Number(gross_amount);
   if (Number.isFinite(gross) && Math.round(gross) !== payment.amount) {
     logAlert('PAYMENT_AMOUNT_MISMATCH', {
+      order_id,
+      paymentId: payment.id,
+      dbAmount: payment.amount,
+      gatewayAmount: gross,
+    });
+    // Highest-priority alarm (Bagian 10) — page ops immediately.
+    await notifyOps('PAYMENT_AMOUNT_MISMATCH', {
       order_id,
       paymentId: payment.id,
       dbAmount: payment.amount,
@@ -164,7 +171,8 @@ export async function POST(req: Request) {
       if (res.changed) {
         await prisma.job.update({ where: { id: payment.jobId }, data: { status: 'CONFIRMED' } });
         logEvent('payment.status_changed', { paymentId: payment.id, from: 'PENDING', to: 'PAID' });
-        await notifyCustomerPaid(payment.jobId);
+        // Notify both parties (Bagian 9): customer "diterima", provider "job baru".
+        await notifyPaymentStatus(payment.id, 'PAID');
       }
     } else if (isFailure) {
       const res = await prisma.$transaction((tx) =>
@@ -179,6 +187,7 @@ export async function POST(req: Request) {
       );
       if (res.changed) {
         logEvent('payment.status_changed', { paymentId: payment.id, from: 'PENDING', to: 'FAILED' });
+        await notifyPaymentStatus(payment.id, 'FAILED');
       }
     }
   } catch (err) {

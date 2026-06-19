@@ -5,7 +5,6 @@ import { authOptions } from '@/lib/auth';
 import { ok, fail, handle } from '@/lib/api';
 import { releaseAndSettle } from '@/lib/payout';
 import { InvalidTransitionError } from '@/lib/payment-state';
-import { sendWAMessage } from '@/lib/whatsapp';
 
 const completeSchema = z.object({
   rating: z.number().int().min(1).max(5),
@@ -26,7 +25,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
 
     const job = await prisma.job.findUnique({
       where: { id: params.id },
-      include: { payment: true, provider: { include: { user: true } }, customer: true },
+      include: { payment: true },
     });
 
     // Only the booking's owner may complete it.
@@ -80,24 +79,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       });
     });
 
-    // Tell the provider what happened to their money.
-    const providerAmount = job.payment.providerAmount;
-    if (job.provider.user.phone) {
-      const msg =
-        settle.status === 'SUCCESS'
-          ? `💰 *Dana Pekerjaan Dicairkan!*\n\nPekerjaan dari ${job.customer.name ?? job.customer.phone} selesai.\n` +
-            `Dana dicairkan: *Rp ${providerAmount.toLocaleString('id-ID')}* (platform fee Rp ${job.payment.platformFee.toLocaleString('id-ID')} sudah dipotong).`
-          : `✅ *Pekerjaan Selesai*\n\nDana Rp ${providerAmount.toLocaleString('id-ID')} sudah aman. ` +
-            (settle.reason === 'kyc_pending'
-              ? 'Selesaikan verifikasi rekening/KYC untuk mencairkannya.'
-              : 'Pencairan sedang diproses.');
-      await sendWAMessage(job.provider.user.phone, msg);
-    }
-
+    // Notification (provider payout + customer thank-you) is fired centrally by
+    // releaseAndSettle → notifyPaymentStatus('RELEASED') (Bagian 9).
     return ok({
       released: true,
       payoutStatus: settle.status,
-      providerAmount,
+      providerAmount: job.payment.providerAmount,
       platformFee: job.payment.platformFee,
       rating,
     });

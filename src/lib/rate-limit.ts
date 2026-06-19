@@ -46,6 +46,44 @@ function sweep(now: number): void {
   });
 }
 
+// ─── Scraping-burst detection (Architecture brief Bagian 8/9) ───────────────
+// Repeatedly slamming a public endpoint *past* its rate limit is a strong signal
+// of automated scraping rather than an impatient human. Count breaches per key
+// and fire ONCE when the burst crosses the alert threshold (per window), so ops
+// gets a single page, not a flood.
+
+interface BreachBucket {
+  breaches: number;
+  resetAt: number;
+  alerted: boolean;
+}
+const breachBuckets = new Map<string, BreachBucket>();
+
+export interface ScrapingDetectOptions {
+  windowMs: number;
+  breachesBeforeAlert: number;
+}
+
+/** Record a rate-limit breach for `key`; returns true exactly once per window
+ *  when the breach count crosses the alert threshold. */
+export function recordRateLimitBreach(
+  key: string,
+  opts: ScrapingDetectOptions = { windowMs: 600_000, breachesBeforeAlert: 5 }
+): boolean {
+  const now = Date.now();
+  const bucket = breachBuckets.get(key);
+  if (!bucket || now > bucket.resetAt) {
+    breachBuckets.set(key, { breaches: 1, resetAt: now + opts.windowMs, alerted: false });
+    return false;
+  }
+  bucket.breaches++;
+  if (!bucket.alerted && bucket.breaches >= opts.breachesBeforeAlert) {
+    bucket.alerted = true;
+    return true; // cross the threshold → alert once
+  }
+  return false;
+}
+
 export function rateLimit(
   key: string,
   opts: RateLimitOptions = { windowMs: 60_000, max: 60 }

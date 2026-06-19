@@ -3,14 +3,21 @@ import prisma from '@/lib/prisma';
 import { authOptions } from '@/lib/auth';
 import { ok, fail, handle } from '@/lib/api';
 import { onboardingSchema } from '@/lib/validations';
-import { PROVIDER_PUBLIC_SELECT } from '@/lib/providers';
-import { rateLimit, clientIp } from '@/lib/rate-limit';
+import { PROVIDER_PUBLIC_SELECT, toPublicProvider } from '@/lib/providers';
+import { rateLimit, clientIp, recordRateLimitBreach } from '@/lib/rate-limit';
+import { logAlert, notifyOps } from '@/lib/logger';
 
 export async function GET(req: Request) {
   return handle(async () => {
     // Basic abuse protection on a public, unauthenticated endpoint.
-    const limit = rateLimit(`providers:${clientIp(req)}`, { windowMs: 60_000, max: 60 });
+    const ip = clientIp(req);
+    const limit = rateLimit(`providers:${ip}`, { windowMs: 60_000, max: 30 });
     if (!limit.ok) {
+      // Persistent breaches = likely scraping the provider directory (Bagian 8/9).
+      if (recordRateLimitBreach(`providers-breach:${ip}`)) {
+        logAlert('SEARCH_SCRAPING_SUSPECTED', { ip });
+        await notifyOps('SEARCH_SCRAPING_SUSPECTED', { ip, endpoint: '/api/providers' });
+      }
       return fail(`Terlalu banyak permintaan. Coba lagi dalam ${limit.retryAfter} detik.`, 429);
     }
 
@@ -22,7 +29,9 @@ export async function GET(req: Request) {
       select: PROVIDER_PUBLIC_SELECT,
       orderBy: { rating: 'desc' },
     });
-    return ok(providers);
+    // Defense-in-depth: project through the output DTO gate so no raw Prisma row
+    // (and no future sensitive column) can leak even if the select changes.
+    return ok(providers.map(toPublicProvider));
   })();
 }
 

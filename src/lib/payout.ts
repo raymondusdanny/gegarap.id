@@ -7,7 +7,8 @@ import {
 import { getDisbursementProvider } from './disbursement';
 import { recordAudit, AuditAction } from './audit';
 import { sendWAMessage } from './whatsapp';
-import { logEvent } from './logger';
+import { notifyPaymentStatus } from './notifications';
+import { logEvent, notifyOps } from './logger';
 
 /** Below this accumulated amount, payout is held & batched (Bagian 6). */
 export const MIN_PAYOUT = 10_000; // Rp 10.000
@@ -98,6 +99,18 @@ export async function settleProviderPayout(paymentId: string): Promise<SettleRes
       data: { status: 'FAILED', failureReason: result.failureReason ?? 'unknown' },
     });
     logEvent('disbursement.failed', { payoutId: payout.id, paymentId, reason: result.failureReason }, 'error');
+    // Page ops if this provider's disbursements fail repeatedly (Bagian 10).
+    const recentFailures = await prisma.payout.count({
+      where: { providerProfileId: payment.providerProfileId, status: 'FAILED' },
+    });
+    if (recentFailures > 1) {
+      await notifyOps('DISBURSEMENT_REPEATED_FAILURE', {
+        providerProfileId: payment.providerProfileId,
+        failures: recentFailures,
+        paymentId,
+        reason: result.failureReason,
+      });
+    }
     return { payoutId: payout.id, status: 'FAILED', reason: result.failureReason };
   }
 
@@ -130,13 +143,15 @@ export async function settleProviderPayout(paymentId: string): Promise<SettleRes
 export async function releaseAndSettle(
   paymentId: string,
   triggeredBy: string,
-  reason: string
+  reason: string,
+  opts: { notify?: boolean } = {}
 ): Promise<SettleResult> {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   if (!payment) throw new Error(`Payment not found: ${paymentId}`);
   const status = payment.status as PaymentStatus;
 
   if (status === 'PAID') {
+    // Intermediate HELD here is a same-call internal step (no separate notify).
     await transitionPayment({ paymentId, to: 'HELD', triggeredBy, reason });
     await transitionPayment({ paymentId, to: 'RELEASED', triggeredBy, reason });
   } else if (status === 'HELD' || status === 'DISPUTED' || status === 'REFUND_REJECTED') {
@@ -146,5 +161,15 @@ export async function releaseAndSettle(
   }
 
   logEvent('payment.status_changed', { paymentId, to: 'RELEASED', triggeredBy });
-  return settleProviderPayout(paymentId);
+  const settle = await settleProviderPayout(paymentId);
+
+  // Notify both parties of the release/payout outcome (Bagian 9), unless the
+  // caller is sending its own contextual message (e.g. admin dispute ruling).
+  if (opts.notify !== false) {
+    await notifyPaymentStatus(paymentId, 'RELEASED', {
+      settleStatus: settle.status,
+      settleReason: settle.reason,
+    });
+  }
+  return settle;
 }

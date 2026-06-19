@@ -13,13 +13,17 @@ import { formatCurrency, cn } from '@/lib/utils';
 export interface JobRow {
   id: string;
   customerName: string;
-  customerWaNumber: string;
-  customerAddress: string;
+  /** Null until the DP is paid (PROTECTED tier — Bagian 3). */
+  customerWaNumber: string | null;
+  /** Null until the DP is paid (PROTECTED tier — Bagian 3). */
+  customerAddress: string | null;
   estimatedDays: number;
   totalFee: number;
   status: string;
   createdAt: string;
 }
+
+const LOCKED_CONTACT = 'Tersedia setelah DP dibayar';
 
 type SortKey = 'createdAt' | 'totalFee';
 const PAGE_SIZE = 5;
@@ -56,7 +60,7 @@ export function JobsTable({ jobs }: { jobs: JobRow[] }) {
       (j) =>
         !q ||
         j.customerName.toLowerCase().includes(q) ||
-        j.customerAddress.toLowerCase().includes(q)
+        (j.customerAddress ?? '').toLowerCase().includes(q)
     );
     list.sort((a, b) => {
       const mult = dir === 'asc' ? 1 : -1;
@@ -136,12 +140,20 @@ export function JobsTable({ jobs }: { jobs: JobRow[] }) {
                     <Avatar name={job.customerName} size="sm" />
                     <div>
                       <div className="font-semibold text-foreground">{job.customerName}</div>
-                      <div className="text-xs text-muted-foreground">{job.customerWaNumber}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {job.customerWaNumber ?? (
+                          <span className="italic text-muted-foreground/60">{LOCKED_CONTACT}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </td>
                 <td className="max-w-[220px] px-6 py-4">
-                  <p className="truncate text-muted-foreground">{job.customerAddress}</p>
+                  <p className="truncate text-muted-foreground">
+                    {job.customerAddress ?? (
+                      <span className="italic text-muted-foreground/60">{LOCKED_CONTACT}</span>
+                    )}
+                  </p>
                   <p className="text-xs text-muted-foreground/70">{job.estimatedDays} hari kerja</p>
                 </td>
                 <td className="px-6 py-4 font-semibold text-foreground">
@@ -178,14 +190,22 @@ export function JobsTable({ jobs }: { jobs: JobRow[] }) {
                 <Avatar name={job.customerName} size="sm" />
                 <div>
                   <div className="font-semibold text-foreground">{job.customerName}</div>
-                  <div className="text-xs text-muted-foreground">{job.customerWaNumber}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {job.customerWaNumber ?? (
+                      <span className="italic text-muted-foreground/60">{LOCKED_CONTACT}</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <Badge variant={statusVariant[job.status] ?? 'neutral'}>
                 {statusLabel[job.status] ?? job.status}
               </Badge>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">{job.customerAddress}</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              {job.customerAddress ?? (
+                <span className="italic text-muted-foreground/60">{LOCKED_CONTACT}</span>
+              )}
+            </p>
             <div className="mt-3 flex items-center justify-between">
               <span className="font-bold text-foreground">{formatCurrency(job.totalFee)}</span>
               {accepted.has(job.id) ? (

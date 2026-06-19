@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { fieldErrors } from './validations';
+import { isHttpAwareError } from './errors';
 
 /** Consistent success envelope. */
 export function ok<T>(data: T, status = 200) {
@@ -23,6 +24,11 @@ export function handle(fn: () => Promise<NextResponse>) {
     } catch (err) {
       if (err instanceof z.ZodError) {
         return fail('Data yang dikirim tidak valid.', 422, fieldErrors(err));
+      }
+      // Typed policy/guard errors (ForbiddenError, InvalidStateError, …) carry
+      // their own HTTP status — surface it instead of a blanket 500.
+      if (isHttpAwareError(err)) {
+        return fail(err.message, err.httpStatus);
       }
       console.error('[api] Unhandled error:', err);
       return fail('Terjadi kesalahan pada server. Silakan coba lagi.', 500);
