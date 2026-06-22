@@ -16,11 +16,13 @@ type SortKey = 'rating' | 'price-asc' | 'price-desc';
 export function SearchClient({
   providers,
   initialCategory = 'Semua',
+  initialQuery = '',
 }: {
   providers: ProviderListItem[];
   initialCategory?: string;
+  initialQuery?: string;
 }) {
-  const [query, setQuery] = React.useState('');
+  const [query, setQuery] = React.useState(initialQuery);
   const [category, setCategory] = React.useState(initialCategory);
   const [sort, setSort] = React.useState<SortKey>('rating');
 

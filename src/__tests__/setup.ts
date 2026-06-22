@@ -2,15 +2,16 @@ import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 /**
- * next-auth/react stubs so client components that call useSession render under
- * jsdom without a real session. SessionProvider returns its children directly —
- * typed as `unknown` (not React.ReactNode) because importing React types here
- * trips the Vitest runner.
+ * Stub the Firebase client auth context so client components that call
+ * useSession() render under jsdom without initializing Firebase. Returns an
+ * unauthenticated session by default.
  */
-vi.mock('next-auth/react', () => ({
+vi.mock('@/components/providers/AuthProvider', () => ({
   __esModule: true,
   useSession: () => ({ data: null, status: 'unauthenticated', update: vi.fn() }),
-  signIn: vi.fn(),
-  signOut: vi.fn(),
-  SessionProvider: ({ children }: { children: unknown }) => children,
+  signOutFull: vi.fn(),
+  AuthProvider: ({ children }: { children: unknown }) => children,
 }));
+
+// Guard against any accidental real Firebase initialization in unit tests.
+vi.mock('@/lib/firebase/client', () => ({ auth: {}, db: {} }));

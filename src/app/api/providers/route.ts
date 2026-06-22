@@ -1,6 +1,6 @@
-import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
+import { adminDb } from '@/lib/firebase/admin';
 import { ok, fail, handle } from '@/lib/api';
 import { onboardingSchema } from '@/lib/validations';
 import { PROVIDER_PUBLIC_SELECT, toPublicProvider } from '@/lib/providers';
@@ -38,7 +38,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   return handle(async () => {
     // Onboarding requires an authenticated session — no anonymous profiles.
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) {
       return fail('Harus login dulu untuk mendaftar sebagai tukang.', 401);
     }
@@ -83,6 +83,13 @@ export async function POST(req: Request) {
         },
       });
     });
+
+    // Mirror the role (and name) to the Firestore auth profile so the client
+    // UI reflects PROVIDER immediately. Postgres stays authoritative for RBAC.
+    await adminDb
+      .collection('users')
+      .doc(session.user.id)
+      .set({ role: 'PROVIDER', name: input.name }, { merge: true });
 
     return ok({ providerProfileId: profile.id, name: input.name }, 201);
   })();

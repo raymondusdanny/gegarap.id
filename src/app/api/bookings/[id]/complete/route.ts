@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { ok, fail, handle } from '@/lib/api';
 import { releaseAndSettle } from '@/lib/payout';
 import { InvalidTransitionError } from '@/lib/payment-state';
@@ -16,7 +15,7 @@ const COMPLETABLE_JOB = ['CONFIRMED', 'IN_PROGRESS', 'AWAITING_CONFIRMATION'];
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   return handle(async () => {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return fail('Unauthorized', 401);
 
     const body = await req.json().catch(() => null);

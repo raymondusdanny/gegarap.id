@@ -1,0 +1,110 @@
+import 'server-only';
+import { cookies } from 'next/headers';
+import { FieldValue } from 'firebase-admin/firestore';
+import { adminAuth, adminDb } from './admin';
+import prisma from '@/lib/prisma';
+
+export const SESSION_COOKIE = 'session';
+/** Session cookie lifetime — 14 days, matching the old JWT expiry. */
+export const SESSION_EXPIRES_IN_MS = 60 * 60 * 24 * 14 * 1000;
+
+export interface SessionUser {
+  id: string; // Firebase Auth uid — also the Postgres User.id (the join key)
+  name?: string | null;
+  email?: string | null;
+  phone?: string | null; // WhatsApp, canonical 628… (Postgres is authoritative)
+  image?: string | null;
+  role?: string;
+}
+export interface AppSession {
+  user: SessionUser;
+}
+
+/** Verify the session cookie and return only the uid (cheap, no DB hit). */
+export async function getSessionUid(): Promise<string | null> {
+  const cookie = cookies().get(SESSION_COOKIE)?.value;
+  if (!cookie) return null;
+  try {
+    const decoded = await adminAuth.verifySessionCookie(cookie, true);
+    return decoded.uid;
+  } catch {
+    return null; // missing / invalid / revoked / expired
+  }
+}
+
+/**
+ * Drop-in replacement for the old `getServerSession(authOptions)`. Returns the
+ * same `{ user: { id, name, email, phone, role, image } }` shape so existing
+ * call sites only change the import + call. `role`/`phone` come from Postgres
+ * (the authoritative domain record); `image` from the Firebase token.
+ */
+export async function getSession(): Promise<AppSession | null> {
+  const cookie = cookies().get(SESSION_COOKIE)?.value;
+  if (!cookie) return null;
+
+  let decoded;
+  try {
+    decoded = await adminAuth.verifySessionCookie(cookie, true);
+  } catch {
+    return null;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: decoded.uid },
+    select: { id: true, name: true, email: true, phone: true, role: true },
+  });
+  if (!user) return null;
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      image: (decoded.picture as string | undefined) ?? null,
+    },
+  };
+}
+
+/**
+ * Idempotently ensure the Postgres User mirror + Firestore auth-profile doc both
+ * exist for a freshly-authenticated Firebase user. Called from the session route
+ * so a first-time Google sign-in gets provisioned without a separate endpoint.
+ *
+ * The Postgres row is keyed by the Firebase uid so the relational graph (Job,
+ * Payment, Review → User.id) keeps working. Existing fields are never clobbered.
+ */
+export async function ensureUserRecord(input: {
+  uid: string;
+  email: string;
+  name?: string | null;
+  picture?: string | null;
+  authProvider?: 'password' | 'google';
+}) {
+  const user = await prisma.user.upsert({
+    where: { id: input.uid },
+    update: {}, // keep name/role/phone intact on subsequent logins
+    create: {
+      id: input.uid,
+      email: input.email.toLowerCase(),
+      name: input.name?.trim() || input.email.split('@')[0],
+    },
+  });
+
+  const ref = adminDb.collection('users').doc(input.uid);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set({
+      name: user.name,
+      email: user.email,
+      whatsapp: user.phone ?? null,
+      photoURL: input.picture ?? null,
+      role: user.role,
+      authProvider: input.authProvider ?? 'google',
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  }
+
+  return user;
+}

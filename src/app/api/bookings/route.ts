@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { ok, fail, handle } from '@/lib/api';
 import { bookingSchema } from '@/lib/validations';
 import { calculateBookingFinancials } from '@/lib/calculations';
@@ -13,9 +12,17 @@ import { checkBookingVelocity, deviceIdFrom, recordDeviceAndCheck } from '@/lib/
 export async function POST(req: Request) {
   return handle(async () => {
     // 1. Booking requires an authenticated session.
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) {
       return fail('Harus login untuk booking.', 401);
+    }
+
+    // 1a. A reachable WhatsApp number is required to book (the provider contacts
+    //     the customer there). Google sign-ups without one are asked to add it
+    //     first — the dashboard prompts for this non-blockingly.
+    const customerPhone = session.user.phone;
+    if (!customerPhone) {
+      return fail('Lengkapi nomor WhatsApp di dashboard sebelum membuat booking.', 400);
     }
 
     // 1b. Velocity guard (Bagian 8): cap simultaneous unpaid bookings per account.
@@ -61,8 +68,8 @@ export async function POST(req: Request) {
     const snap = await createSnapToken({
       orderId,
       amount: fin.dpAmount,
-      customerName: session.user.name ?? session.user.phone,
-      customerPhone: session.user.phone,
+      customerName: session.user.name ?? customerPhone,
+      customerPhone,
       description: `DP Booking ${provider.category} - ${provider.user.name}`,
     });
 
@@ -75,7 +82,7 @@ export async function POST(req: Request) {
         status: 'PENDING',
         description: input.description,
         customerAddress: input.customerAddress,
-        customerWaNumber: session.user.phone,
+        customerWaNumber: customerPhone,
         district: input.district,
         scheduledDate: new Date(input.scheduledDate),
         timeSlot: input.timeSlot,
@@ -117,7 +124,7 @@ export async function POST(req: Request) {
           `Jadwal: ${new Date(input.scheduledDate).toLocaleDateString('id-ID')}, ${input.timeSlot}\n` +
           `Estimasi: ${input.estimatedDays} hari\n` +
           `Total: Rp ${fin.totalAmount.toLocaleString('id-ID')}\n\n` +
-          `Cek dashboard: ${process.env.NEXTAUTH_URL ?? ''}/provider/dashboard`
+          `Cek dashboard: ${process.env.APP_URL ?? ''}/provider/dashboard`
       );
     }
 

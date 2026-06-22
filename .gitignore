@@ -37,6 +37,14 @@ yarn-error.log*
 # vercel
 .vercel
 
+# firebase (emulator data export, caches, debug logs)
+/firebase-data
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

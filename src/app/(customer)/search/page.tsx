@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: { category?: string };
+  searchParams: { category?: string; q?: string };
 }) {
   // Only verified providers, and only public-safe columns reach the client.
   const providers = (await prisma.providerProfile.findMany({
@@ -44,7 +44,11 @@ export default async function SearchPage({
         </p>
       </div>
 
-      <SearchClient providers={providers} initialCategory={searchParams.category ?? 'Semua'} />
+      <SearchClient
+        providers={providers}
+        initialCategory={searchParams.category ?? 'Semua'}
+        initialQuery={searchParams.q ?? ''}
+      />
     </div>
   );
 }

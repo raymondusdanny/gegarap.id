@@ -61,7 +61,7 @@ export async function createSnapToken(params: {
       },
     ],
     callbacks: {
-      finish: `${process.env.NEXTAUTH_URL ?? ''}/dashboard`,
+      finish: `${process.env.APP_URL ?? ''}/dashboard`,
     },
   });
 

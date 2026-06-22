@@ -1,6 +1,5 @@
-import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { ok, fail, handle } from '@/lib/api';
 import { AUTO_RELEASE_HOURS } from '@/lib/payout';
 import { sendWAMessage } from '@/lib/whatsapp';
@@ -13,7 +12,7 @@ import { sendWAMessage } from '@/lib/whatsapp';
  */
 export async function POST(_req: Request, { params }: { params: { id: string } }) {
   return handle(async () => {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return fail('Unauthorized', 401);
 
     const job = await prisma.job.findUnique({

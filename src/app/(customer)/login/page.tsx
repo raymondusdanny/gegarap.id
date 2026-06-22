@@ -1,5 +1,5 @@
-import { pageMetadata } from '@/lib/seo';
 import { Suspense } from 'react';
+import { pageMetadata } from '@/lib/seo';
 import { LoginClient } from './LoginClient';
 
 export const metadata = pageMetadata({

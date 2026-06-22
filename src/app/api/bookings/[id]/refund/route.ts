@@ -1,7 +1,6 @@
-import { getServerSession } from 'next-auth';
 import { z } from 'zod';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { ok, fail, handle } from '@/lib/api';
 import { evaluateRefund, DEFAULT_REFUND_POLICY } from '@/lib/refund-policy';
 import { transitionPayment, InvalidTransitionError } from '@/lib/payment-state';
@@ -26,7 +25,7 @@ const REFUNDABLE = ['PAID', 'HELD'];
  */
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   return handle(async () => {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session?.user?.id) return fail('Harus login.', 401);
 
     const body = await req.json().catch(() => null);

@@ -2,8 +2,8 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useSession, signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useSession, signOutFull } from '@/components/providers/AuthProvider';
 import {
   Menu,
   X,
@@ -26,7 +26,7 @@ const links = [
 ];
 
 /** Mask a normalised WA number for display, e.g. 6281234567890 → +62 812***7890. */
-function maskPhone(phone?: string): string {
+function maskPhone(phone?: string | null): string {
   if (!phone) return 'Akun';
   const local = phone.startsWith('62') ? phone.slice(2) : phone;
   if (local.length < 7) return `+62 ${local}`;
@@ -35,14 +35,24 @@ function maskPhone(phone?: string): string {
 
 export function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, status } = useSession();
+
+  // Sign out of Firebase + clear the server session cookie, then go home.
+  const handleSignOut = async () => {
+    await signOutFull();
+    router.push('/');
+    router.refresh();
+  };
   const [open, setOpen] = React.useState(false);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [scrolled, setScrolled] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
 
   const authed = status === 'authenticated';
-  const masked = maskPhone(session?.user?.phone);
+  // Prefer the display name; fall back to a masked WA number (Google sign-ups
+  // may not have one yet).
+  const masked = session?.user?.name?.trim() || maskPhone(session?.user?.phone);
   const isProvider = session?.user?.role === 'PROVIDER';
   const isAdmin = session?.user?.role === 'ADMIN';
 
@@ -176,7 +186,7 @@ export function Navbar() {
                   <div className="border-t border-border pt-1">
                     <button
                       role="menuitem"
-                      onClick={() => signOut({ callbackUrl: '/' })}
+                      onClick={handleSignOut}
                       className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
                     >
                       <LogOut className="h-4 w-4" />
@@ -244,7 +254,7 @@ export function Navbar() {
                   );
                 })}
                 <button
-                  onClick={() => signOut({ callbackUrl: '/' })}
+                  onClick={handleSignOut}
                   className="flex items-center gap-3 rounded-xl px-4 py-3 text-base font-semibold text-red-600 transition-colors hover:bg-red-50"
                 >
                   <LogOut className="h-5 w-5" />

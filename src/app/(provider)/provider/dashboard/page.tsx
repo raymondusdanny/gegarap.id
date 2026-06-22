@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
 import { CheckCircle2, Clock, Wallet, Briefcase } from 'lucide-react';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { Badge } from '@/components/ui/Badge';
 import { StatCard } from '@/components/ui/StatCard';
 import { JobsTable, type JobRow } from '@/components/dashboard/JobsTable';
@@ -14,7 +13,7 @@ export const metadata: Metadata = { title: 'Dashboard Tukang' };
 export const dynamic = 'force-dynamic';
 
 export default async function ProviderDashboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect('/login?redirect=/provider/dashboard');
 
   // The profile belonging to the logged-in user — this is the filter that was

@@ -7,6 +7,50 @@ const adapter = new PrismaPg({
 });
 const prisma = new PrismaClient({ adapter });
 
+// Shared dev password for seeded accounts. Log in with any seeded email or phone
+// + this value (only when Firebase provisioning is enabled — see below).
+const DEV_PASSWORD = process.env.SEED_PASSWORD || 'Password123';
+
+/**
+ * Optionally create a matching Firebase Auth user + Firestore profile so a
+ * seeded account is actually loginable, and return its uid (used as the Postgres
+ * User.id so the two stay joined). OPT-IN via `SEED_FIREBASE=true` and pointed at
+ * the emulator — never runs against production by default. Returns undefined
+ * when disabled, in which case Postgres generates its own uuid id (Postgres-only
+ * seed; the user simply isn't loginable until a real Firebase account exists).
+ */
+async function provisionAuthUser(opts: {
+  email: string;
+  name: string;
+  phone: string | null;
+  role: string;
+}): Promise<string | undefined> {
+  if (process.env.SEED_FIREBASE !== 'true') return undefined;
+  const { adminAuth, adminDb } = await import('../src/lib/firebase/admin');
+  const { FieldValue } = await import('firebase-admin/firestore');
+  try {
+    const existing = await adminAuth.getUserByEmail(opts.email);
+    await adminAuth.deleteUser(existing.uid); // idempotent re-seed
+  } catch {
+    /* no existing account for this email */
+  }
+  const created = await adminAuth.createUser({
+    email: opts.email,
+    password: DEV_PASSWORD,
+    displayName: opts.name,
+  });
+  await adminDb.collection('users').doc(created.uid).set({
+    name: opts.name,
+    email: opts.email,
+    whatsapp: opts.phone,
+    photoURL: null,
+    role: opts.role,
+    authProvider: 'password',
+    createdAt: FieldValue.serverTimestamp(),
+  });
+  return created.uid;
+}
+
 // Mirrors lib/calculations.ts (DEFAULT_FEE_RULE) so seeded demo jobs match the
 // live percent-based fee model. Inlined because the seed runs under tsx without
 // the '@/...' path alias.
@@ -148,8 +192,15 @@ async function main() {
 
   const createdProfiles: { id: string; dailyRate: number }[] = [];
   for (const p of providers) {
+    const uid = await provisionAuthUser({
+      email: p.email,
+      name: p.name,
+      phone: p.phone,
+      role: 'PROVIDER',
+    });
     const user = await prisma.user.create({
       data: {
+        id: uid,
         name: p.name,
         email: p.email,
         phone: p.phone,
@@ -184,10 +235,17 @@ async function main() {
     }
   }
 
-  // An admin account so the KYC panel is reachable locally. Login-testable via
-  // WhatsApp OTP on phone 628130000001 (role is ADMIN).
+  // An admin account so the KYC panel is reachable locally. Log in with
+  // admin@gegarap.id (or phone 628130000001) + DEV_PASSWORD; role is ADMIN.
+  const adminUid = await provisionAuthUser({
+    email: 'admin@gegarap.id',
+    name: 'Admin gegarap',
+    phone: '628130000001',
+    role: 'ADMIN',
+  });
   await prisma.user.create({
     data: {
+      id: adminUid,
       name: 'Admin gegarap',
       email: 'admin@gegarap.id',
       phone: '628130000001',
@@ -196,8 +254,15 @@ async function main() {
   });
 
   // A provider awaiting KYC, so the admin review queue isn't empty.
+  const pendingUid = await provisionAuthUser({
+    email: 'pending@example.com',
+    name: 'Calon Tukang (Pending)',
+    phone: '628110000099',
+    role: 'PROVIDER',
+  });
   await prisma.user.create({
     data: {
+      id: pendingUid,
       name: 'Calon Tukang (Pending)',
       email: 'pending@example.com',
       phone: '628110000099',
@@ -219,10 +284,17 @@ async function main() {
     },
   });
 
-  // A demo customer so the customer dashboard isn't empty. Login-testable via
-  // WhatsApp OTP on phone 628120000001.
+  // A demo customer so the customer dashboard isn't empty. Log in with
+  // susanto@example.com (or phone 628120000001) + DEV_PASSWORD.
+  const customerUid = await provisionAuthUser({
+    email: 'susanto@example.com',
+    name: 'Pak Susanto',
+    phone: '628120000001',
+    role: 'CUSTOMER',
+  });
   const customer = await prisma.user.create({
     data: {
+      id: customerUid,
       name: 'Pak Susanto',
       email: 'susanto@example.com',
       phone: '628120000001',

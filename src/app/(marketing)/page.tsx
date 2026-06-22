@@ -1,26 +1,24 @@
 import Link from 'next/link';
 import {
   Search,
-  Briefcase,
   ShieldCheck,
   MapPin,
   CreditCard,
-  Star,
   ArrowRight,
-  Sparkles,
   UserCheck,
   CalendarCheck,
   Wallet,
 } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { buttonVariants } from '@/components/ui/Button';
-import { Avatar } from '@/components/ui/Avatar';
 import MapWrapper from '@/components/map/MapWrapper';
 import { PROVIDER_MAP_SELECT, toMapProvider } from '@/lib/providers';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { localBusinessJsonLd } from '@/lib/seo';
 import { Reveal } from '@/components/motion/Reveal';
 import { CountUp } from '@/components/motion/CountUp';
+import { CategoryGrid } from '@/components/home/CategoryGrid';
+import { Hero3D } from '@/components/sections/Hero3D';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +58,7 @@ const steps = [
   },
 ];
 
-export default async function Home() {
+export default async function MarketingHome() {
   // Public-safe columns only; coordinates are fuzzed before reaching the map.
   const providers = await prisma.providerProfile.findMany({
     where: { isVerified: true, available: true },
@@ -90,77 +88,8 @@ export default async function Home() {
     <div className="overflow-hidden">
       <JsonLd data={localBusinessJsonLd({ ratingValue: avgRating, reviewCount: totalReviews })} />
 
-      {/* ===== Hero ===== */}
-      <section className="relative">
-        <div className="absolute inset-0 -z-10 hero-glow" />
-        <div className="absolute inset-0 -z-10 bg-grid" />
-        <div className="container py-20 sm:py-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <div className="mb-6 inline-flex animate-fade-down items-center gap-2 rounded-full border border-primary/20 bg-primary-light/60 px-4 py-1.5 text-sm font-semibold text-primary-800">
-              <Sparkles className="h-4 w-4" />
-              Platform jasa tukang hyper-local terpercaya di Yogyakarta
-            </div>
-
-            <h1 className="animate-fade-up text-4xl font-extrabold leading-[1.1] tracking-tight text-foreground sm:text-6xl">
-              Solusi <span className="text-gradient">jasa tukang</span> terpercaya di sekitar Anda
-            </h1>
-
-            <p className="animation-delay-100 mx-auto mt-6 max-w-2xl animate-fade-up text-lg text-muted-foreground sm:text-xl">
-              Temukan tukang ledeng, listrik, dan kebersihan profesional yang sudah terverifikasi.
-              Booking dalam hitungan menit, bayar dengan aman.
-            </p>
-
-            <div className="animation-delay-200 mt-10 flex animate-fade-up flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link
-                href="/search"
-                className={buttonVariants({
-                  variant: 'primary',
-                  size: 'xl',
-                  className: 'w-full sm:w-auto',
-                })}
-              >
-                <Search className="h-5 w-5" />
-                Cari Tukang
-              </Link>
-              <Link
-                href="/onboarding"
-                className={buttonVariants({
-                  variant: 'outline',
-                  size: 'xl',
-                  className: 'w-full sm:w-auto',
-                })}
-              >
-                <Briefcase className="h-5 w-5 text-primary" />
-                Daftar sebagai Tukang
-              </Link>
-            </div>
-
-            {/* Social proof */}
-            <div className="animation-delay-300 mt-10 flex animate-fade-up flex-col items-center justify-center gap-3 sm:flex-row sm:gap-5">
-              <div className="flex -space-x-3">
-                {providers.slice(0, 4).map((p) => (
-                  <Avatar key={p.id} name={p.user.name} size="sm" />
-                ))}
-              </div>
-              <div className="flex items-center gap-1.5 text-sm">
-                <div className="flex">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <CountUp
-                  value={avgRating}
-                  decimals={1}
-                  className="font-semibold text-foreground"
-                />
-                <span className="text-muted-foreground">
-                  dari <CountUp value={totalJobs} suffix="+" /> pekerjaan
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ===== Hero (3D + smart search) ===== */}
+      <Hero3D />
 
       {/* ===== Stats ===== */}
       <section className="container -mt-6">
@@ -182,6 +111,9 @@ export default async function Home() {
           ))}
         </Reveal>
       </section>
+
+      {/* ===== Categories ===== */}
+      <CategoryGrid />
 
       {/* ===== Features ===== */}
       <section className="container py-20">

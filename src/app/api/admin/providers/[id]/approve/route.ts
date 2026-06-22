@@ -42,7 +42,7 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
         `✅ *Verifikasi KYC Disetujui!*\n\n` +
           `Selamat ${profile.user.name}, profil tukang Anda di gegarap.id sudah aktif dan ` +
           `tampil di marketplace. Anda kini bisa menerima pekerjaan. 🔧\n\n` +
-          `Cek dashboard: ${process.env.NEXTAUTH_URL ?? ''}/provider/dashboard`
+          `Cek dashboard: ${process.env.APP_URL ?? ''}/provider/dashboard`
       );
     }
 

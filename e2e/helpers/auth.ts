@@ -1,33 +1,33 @@
 import { Page, expect } from '@playwright/test';
 
 /**
- * Log in through the real WhatsApp-OTP flow. Reads the generated code from the
- * test-only endpoint /api/test/get-otp (enabled by E2E_TESTING=true), so no real
- * WhatsApp message is needed.
+ * Authenticate for e2e by registering a fresh account through the real UI.
  *
- * `local` is the WA number WITHOUT the leading 0 / +62 (e.g. "81234567890").
+ * OTP was removed, so auth is now email/WhatsApp + password. Each call creates a
+ * unique CUSTOMER (random email + WA number) and lands authenticated on the
+ * dashboard — so tests stay independent and the new user starts with no bookings.
+ *
+ * The legacy `local` argument is accepted for backward compatibility but ignored
+ * (every call now provisions its own throwaway customer).
  */
-export async function loginWithPhone(page: Page, local = '81234567890') {
-  await page.goto('/login');
+export async function loginWithPhone(page: Page, _local?: string) {
+  const unique = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+  const email = `e2e-${unique}@test.gegarap.id`;
+  // National part: 81 + 8 digits → +62 81xxxxxxxx (passes the ID phone regex).
+  const waLocal = `81${unique.slice(-8).padStart(8, '0')}`;
+  const password = 'Password123';
 
-  await page.getByLabel('Nomor WhatsApp').fill(local);
-  await page.getByRole('button', { name: /Kirim Kode OTP/i }).click();
+  await page.goto('/register');
 
-  // OTP stage shows up once /api/auth/send-otp succeeds.
-  await expect(page.getByText('Cek WhatsApp Anda')).toBeVisible({ timeout: 10_000 });
+  await page.getByLabel('Nama lengkap').fill('E2E Tester');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Nomor WhatsApp').fill(waLocal);
+  await page.getByLabel('Kata sandi', { exact: true }).fill(password);
+  await page.getByLabel('Konfirmasi kata sandi').fill(password);
 
-  // normalizePhone(local) → "62" + local
-  const phone = `62${local}`;
-  const res = await page.request.get(`/api/test/get-otp?phone=${phone}`);
-  const { otp } = (await res.json()) as { otp: string | null };
-  if (!otp) throw new Error(`No OTP found for ${phone} — is E2E_TESTING=true and the DB seeded?`);
+  await page.getByRole('button', { name: /^Daftar$/ }).click();
 
-  // The 6 OTP boxes are <input> (role "textbox"), aria-label "Digit OTP ke-N".
-  const boxes = page.getByRole('textbox');
-  for (let i = 0; i < 6; i++) {
-    await boxes.nth(i).fill(otp[i]);
-  }
-
-  // submitOtp → signIn → router.push(redirect || '/dashboard').
-  await page.waitForURL('**/dashboard', { timeout: 10_000 });
+  // registerUser → auto signIn('credentials') → router.push('/dashboard').
+  await page.waitForURL('**/dashboard', { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: /Dashboard Saya/i })).toBeVisible();
 }

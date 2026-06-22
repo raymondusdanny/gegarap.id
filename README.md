@@ -50,20 +50,21 @@ npm install
 cp .env.example .env
 ```
 
-The defaults already match `docker-compose.yml`, so no edits are needed for local development.
+Edit `.env` and set `DATABASE_URL` to a managed Postgres connection string — free
+tier on [Neon](https://neon.tech) or [Supabase](https://supabase.com). (The
+Firebase emulator values in `.env.local` already work as-is for local auth.)
 
-### 3. Start the database + apply schema + seed (one command)
+### 3. Apply schema + seed (one command)
 
 ```bash
 npm run setup
 ```
 
-This runs `docker compose up -d`, pushes the Prisma schema, and seeds demo data.
+This pushes the Prisma schema to your cloud database and seeds demo data.
 
 > Prefer to run the steps individually?
 >
 > ```bash
-> npm run db:up        # start the Postgres container
 > npm run db:push      # sync the Prisma schema to the DB
 > npm run db:seed      # load demo providers + jobs
 > ```
@@ -85,9 +86,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run dev`         | Start the dev server                         |
 | `npm run build`       | Production build                             |
 | `npm run start`       | Start the production server                  |
-| `npm run setup`       | DB up + schema push + seed (first-time)      |
-| `npm run db:up`       | Start the PostgreSQL container               |
-| `npm run db:down`     | Stop the PostgreSQL container                |
+| `npm run setup`       | Schema push + seed (first-time)              |
 | `npm run db:generate` | Generate the Prisma client                   |
 | `npm run db:push`     | Push the Prisma schema to the database       |
 | `npm run db:migrate`  | Create & apply a migration (dev)             |
@@ -129,6 +128,4 @@ src/
 
 ## 🐘 Database
 
-PostgreSQL runs in Docker (`docker-compose.yml`) with a persistent named volume (`gegarap_pgdata`). The connection string lives in `.env` as `DATABASE_URL` and is consumed both by Next.js and by `prisma.config.ts`.
-
-For production, point `DATABASE_URL` at any managed Postgres (Supabase, Neon, RDS, etc.) — no code changes required.
+PostgreSQL is a **managed cloud database — no Docker** (Neon, Supabase, RDS, etc.). The connection string lives in `.env` as `DATABASE_URL` and is consumed both by Next.js and by `prisma.config.ts`. The same string works for local dev and production.

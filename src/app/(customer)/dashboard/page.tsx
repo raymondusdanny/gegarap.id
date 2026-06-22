@@ -1,15 +1,15 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getServerSession } from 'next-auth';
 import prisma from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/firebase/session';
 import { CustomerBookings, type CustomerBooking } from '@/components/dashboard/CustomerBookings';
+import { CompleteWhatsAppPrompt } from '@/components/dashboard/CompleteWhatsAppPrompt';
 
 export const metadata: Metadata = { title: 'Dashboard Saya' };
 export const dynamic = 'force-dynamic';
 
 export default async function CustomerDashboard() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session?.user?.id) redirect('/login?redirect=/dashboard');
 
   const jobs = await prisma.job.findMany({
@@ -47,6 +47,9 @@ export default async function CustomerDashboard() {
         </h1>
         <p className="mt-2 text-muted-foreground">Pantau status booking dan riwayat pekerjaan Anda.</p>
       </div>
+
+      {/* Non-blocking nudge for accounts (e.g. Google sign-ups) without a WA number. */}
+      {!session.user.phone && <CompleteWhatsAppPrompt />}
 
       <CustomerBookings bookings={bookings} />
     </div>
