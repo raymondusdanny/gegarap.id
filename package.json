@@ -2,6 +2,9 @@
   "name": "gegarap-id",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "concurrently -n emulators,next -c magenta,cyan \"npm:dev:emulators\" \"next dev\"",
     "dev:emulators": "node scripts/dev-emulators.mjs",
