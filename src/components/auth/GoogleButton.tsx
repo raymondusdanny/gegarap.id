@@ -49,7 +49,7 @@ export function GoogleButton({
     setLoading(true);
     try {
       await loginWithGoogle();
-      router.push(redirect);
+      router.replace(redirect);
       router.refresh();
     } catch (e) {
       setLoading(false);

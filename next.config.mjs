@@ -11,6 +11,19 @@ const nextConfig = {
     // server route that touches Firebase Admin (auth/session/providers/etc.).
     serverComponentsExternalPackages: ['firebase-admin'],
   },
+  // Let Firebase's Google sign-in popup keep a handle to its opener so
+  // window.closed/window.close() work — otherwise the browser's default COOP
+  // blocks them, spamming "Cross-Origin-Opener-Policy would block..." warnings
+  // and making the popup-close detection flaky. `same-origin-allow-popups` is
+  // the value Firebase recommends for OAuth-popup apps.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [{ key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

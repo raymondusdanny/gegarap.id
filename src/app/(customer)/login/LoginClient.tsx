@@ -25,7 +25,7 @@ export function LoginClient() {
   const params = useSearchParams();
   const { status } = useSession();
   const toast = useToast();
-  const redirect = params.get('redirect') || '/dashboard';
+  const redirect = params.get('redirect') || '/';
 
   const [identifier, setIdentifier] = React.useState('');
   const [password, setPassword] = React.useState('');
@@ -66,7 +66,7 @@ export function LoginClient() {
 
       await loginWithEmailPassword(email, password);
       toast.success('Berhasil masuk. Selamat datang kembali! 🎉');
-      router.push(redirect);
+      router.replace(redirect);
       router.refresh();
     } catch (e) {
       setLoading(false);

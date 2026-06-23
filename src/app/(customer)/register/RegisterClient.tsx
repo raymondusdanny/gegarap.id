@@ -36,7 +36,7 @@ export function RegisterClient() {
   const params = useSearchParams();
   const { status } = useSession();
   const toast = useToast();
-  const redirect = params.get('redirect') || '/dashboard';
+  const redirect = params.get('redirect') || '/';
 
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
@@ -85,7 +85,7 @@ export function RegisterClient() {
     try {
       await loginWithEmailPassword(parsed.data.email, password);
       toast.success('Akun berhasil dibuat. Selamat datang! 🎉');
-      router.push(redirect);
+      router.replace(redirect);
       router.refresh();
     } catch {
       setLoading(false);
