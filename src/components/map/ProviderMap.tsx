@@ -71,7 +71,7 @@ export default function ProviderMap({ providers }: MapProps) {
                 </div>
                 <Link
                   href={`/book/${provider.id}`}
-                  className="mt-2 rounded-lg bg-emerald-600 px-4 py-2 text-center text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                  className="mt-2 rounded-lg bg-emerald-700 px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-800"
                 >
                   Booking Sekarang
                 </Link>
