@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import { motion, type Variants } from 'framer-motion';
-import { Search, Briefcase, Star, Home } from 'lucide-react';
+import { Search, Briefcase, Star, Home, BadgeCheck, ShieldCheck } from 'lucide-react';
 import { buttonVariants } from '@/components/ui/Button';
 import { useCanRender3D } from '@/hooks/useCanRender3D';
 import { SmartSearchAI } from './SmartSearchAI';
@@ -41,11 +41,32 @@ const headlineVariants: Variants = {
 function HeroVisualFallback() {
   return (
     <div className="relative flex h-full items-center justify-center">
-      <div className="animate-float relative flex h-52 w-52 items-center justify-center rounded-[2rem] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ring-1 ring-primary/15 sm:h-64 sm:w-64 lg:h-72 lg:w-72">
-        <Home className="h-24 w-24 text-primary/70" strokeWidth={1.25} aria-hidden />
+      {/* Soft glow halo behind the card */}
+      <div
+        className="absolute h-52 w-52 rounded-full bg-primary/20 blur-3xl sm:h-72 sm:w-72"
+        aria-hidden
+      />
+
+      {/* Main floating card with the house mark */}
+      <div className="animate-float relative flex h-52 w-52 items-center justify-center rounded-[2rem] bg-gradient-to-br from-primary/15 via-primary/5 to-transparent ring-1 ring-primary/15 backdrop-blur-sm sm:h-64 sm:w-64 lg:h-72 lg:w-72">
+        <Home className="h-24 w-24 text-primary/70 sm:h-28 sm:w-28" strokeWidth={1.25} aria-hidden />
+
+        {/* Rating badge — top-right */}
         <div className="absolute -right-3 -top-3 flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-sm font-semibold text-foreground shadow-elevated">
           <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
           4.9 · 10.000+ review
+        </div>
+
+        {/* Verified chip — bottom-left */}
+        <div className="absolute -bottom-4 -left-4 flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-elevated">
+          <BadgeCheck className="h-4 w-4 text-primary" aria-hidden />
+          Tukang Terverifikasi
+        </div>
+
+        {/* Secure-payment chip — mid-right (hidden on the smallest screens) */}
+        <div className="absolute -right-6 bottom-10 hidden items-center gap-1.5 rounded-full border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground shadow-elevated sm:flex">
+          <ShieldCheck className="h-4 w-4 text-primary" aria-hidden />
+          Pembayaran Aman
         </div>
       </div>
     </div>
