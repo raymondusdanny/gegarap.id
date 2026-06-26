@@ -64,7 +64,7 @@ const TESTIMONIALS: Testimonial[] = [
     area: 'Mlati',
     rating: 5,
     text: 'Joko merawat taman kami tiap bulan. Taman jadi lebih asri, dia juga kasih saran tanaman yang cocok.',
-    worker: 'Joko Widodo',
+    worker: 'Joko Purnomo',
     category: 'Tukang Kebun',
     daysAgo: 5,
   },

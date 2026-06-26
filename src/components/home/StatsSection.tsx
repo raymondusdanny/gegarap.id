@@ -42,7 +42,7 @@ function Stat({
 
 function StatsSkeleton() {
   return (
-    <section className="container -mt-6" aria-hidden>
+    <section className="container mt-4 sm:mt-6" aria-hidden>
       <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex flex-col items-center gap-2">
@@ -74,7 +74,7 @@ export function StatsSection() {
   if (!data.workerCount || !data.avgRating || !data.jobCount) return null;
 
   return (
-    <section className="container -mt-6" aria-label="Statistik gegarap.id">
+    <section className="container mt-4 sm:mt-6" aria-label="Statistik gegarap.id">
       <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
         <Stat value={data.workerCount} label="Tukang Terverifikasi" suffix="+" />
         <Stat value={data.avgRating} label="Rating Rata-rata" decimals={1} />
