@@ -101,7 +101,7 @@ export default function WorkerMapView({
                 </div>
                 <Link
                   href={`/book/${w.id}`}
-                  className="mt-1 rounded-lg bg-emerald-700 px-4 py-2 text-center text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-800"
+                  className="mt-1 rounded-lg bg-emerald-700 px-4 py-2 text-center text-sm font-bold !text-white !no-underline shadow-sm transition-colors hover:bg-emerald-800 hover:!text-white"
                 >
                   Lihat Profil
                 </Link>
