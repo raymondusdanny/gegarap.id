@@ -40,25 +40,29 @@ function Stat({
   );
 }
 
+/** Shared layout for the stats row — a divider-topped band inside the panel. */
+const ROW_CLASS =
+  'grid grid-cols-3 gap-3 border-t border-border px-4 py-5 sm:gap-6 sm:px-6 sm:py-6';
+
 function StatsSkeleton() {
   return (
-    <section className="container mt-4 sm:mt-6" aria-hidden>
-      <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
-        {[0, 1, 2].map((i) => (
-          <div key={i} className="flex flex-col items-center gap-2">
-            <div className="h-9 w-20 animate-pulse rounded-lg bg-muted sm:h-11 sm:w-28" />
-            <div className="h-3 w-16 animate-pulse rounded bg-muted sm:w-24" />
-          </div>
-        ))}
-      </div>
-    </section>
+    <div className={ROW_CLASS} aria-hidden>
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="flex flex-col items-center gap-2">
+          <div className="h-8 w-16 animate-pulse rounded-lg bg-muted sm:h-10 sm:w-24" />
+          <div className="h-3 w-16 animate-pulse rounded bg-muted sm:w-24" />
+        </div>
+      ))}
+    </div>
   );
 }
 
 /**
- * Homepage stats band, fed by the cached `/api/stats` endpoint. Per spec it
- * stays silent rather than ever showing zeros: if the fetch errors, or any of
- * the three values is 0/null, the whole section is hidden.
+ * Homepage stats row, fed by the cached `/api/stats` endpoint. Renders as the
+ * lower half of the unified trust panel (see {@link TrustBar}) — a divider-topped
+ * band, NOT its own card. Per spec it stays silent rather than ever showing
+ * zeros: if the fetch errors, or any of the three values is 0/null, it renders
+ * nothing so the panel is just the trust badges.
  */
 export function StatsSection() {
   const { data, error, isLoading } = useSWR<StatsResponse>('/api/stats', fetcher, {
@@ -70,17 +74,15 @@ export function StatsSection() {
   // Silently hide on error — never surface a fetch failure on the landing page.
   if (error || !data) return null;
 
-  // Hide the entire section if any metric is empty (0 or null) — no zeros shown.
+  // Hide the row if any metric is empty (0 or null) — no zeros shown.
   if (!data.workerCount || !data.avgRating || !data.jobCount) return null;
 
   return (
-    <section className="container mt-4 sm:mt-6" aria-label="Statistik gegarap.id">
-      <div className="grid grid-cols-3 gap-3 rounded-3xl border border-border bg-card p-6 shadow-card sm:gap-6 sm:p-8">
-        <Stat value={data.workerCount} label="Tukang Terverifikasi" suffix="+" />
-        <Stat value={data.avgRating} label="Rating Rata-rata" decimals={1} />
-        <Stat value={data.jobCount} label="Pekerjaan Selesai" suffix="+" />
-      </div>
-    </section>
+    <div className={ROW_CLASS} aria-label="Statistik gegarap.id">
+      <Stat value={data.workerCount} label="Tukang Terverifikasi" suffix="+" />
+      <Stat value={data.avgRating} label="Rating Rata-rata" decimals={1} />
+      <Stat value={data.jobCount} label="Pekerjaan Selesai" suffix="+" />
+    </div>
   );
 }
 

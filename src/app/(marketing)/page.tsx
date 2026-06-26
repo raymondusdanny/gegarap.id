@@ -16,7 +16,6 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { localBusinessJsonLd } from '@/lib/seo';
 import { Reveal } from '@/components/motion/Reveal';
 import { CategoryGrid } from '@/components/home/CategoryGrid';
-import { StatsSection } from '@/components/home/StatsSection';
 import { TrustBar } from '@/components/home/TrustBar';
 import { TestimonialSection } from '@/components/home/TestimonialSection';
 import { Hero3D } from '@/components/sections/Hero3D';
@@ -85,11 +84,8 @@ export default async function MarketingHome() {
       {/* ===== Hero (3D + smart search) ===== */}
       <Hero3D />
 
-      {/* ===== Trust badges (first thing a new visitor reads) ===== */}
+      {/* ===== Trust panel: badges + live stats in one card ===== */}
       <TrustBar />
-
-      {/* ===== Stats (self-fetching; hides itself on zero/error) ===== */}
-      <StatsSection />
 
       {/* ===== Categories ===== */}
       <CategoryGrid />
