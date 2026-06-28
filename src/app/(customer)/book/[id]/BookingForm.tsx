@@ -14,6 +14,7 @@ import { useToast } from '@/components/ui/Toast';
 import { calculateBookingFinancials, type FeeRule } from '@/lib/calculations';
 import { formatCurrency } from '@/lib/utils';
 import { bookingSchema, fieldErrors, DISTRICTS, TIME_SLOTS } from '@/lib/validations';
+import type { ManualTransferInstruction } from '@/lib/manual-transfer';
 import { updateWhatsapp } from '@/app/actions/profile';
 
 interface BookingFormProps {
@@ -69,6 +70,8 @@ export default function BookingForm({ provider, feeRule }: BookingFormProps) {
   const [wa, setWa] = React.useState(''); // national digits, for accounts (e.g. Google) without a WA yet
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [submitting, setSubmitting] = React.useState(false);
+  // Bank-transfer instructions shown when the gateway is down (fallback path).
+  const [manual, setManual] = React.useState<ManualTransferInstruction | null>(null);
 
   // Google sign-ups have no WhatsApp number; collect it inline here instead of
   // dead-ending the booking with a "go to dashboard" message.
@@ -144,7 +147,11 @@ export default function BookingForm({ provider, feeRule }: BookingFormProps) {
     try {
       const res = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          // Safe-retry key: a network-level retry of this POST won't double-book.
+          'Idempotency-Key': crypto.randomUUID(),
+        },
         body: JSON.stringify(parsed.data),
       });
       const json = await res.json();
@@ -152,6 +159,14 @@ export default function BookingForm({ provider, feeRule }: BookingFormProps) {
       if (!res.ok || !json.ok) {
         if (json.errors) setErrors(json.errors);
         toast.error('Booking gagal', json.message ?? 'Silakan coba lagi.');
+        return;
+      }
+
+      // Gateway down → manual bank-transfer fallback. Booking is saved; show
+      // the transfer instructions instead of the Snap popup.
+      if (json.data.paymentMethod === 'MANUAL_TRANSFER' && json.data.manualTransfer) {
+        setManual(json.data.manualTransfer as ManualTransferInstruction);
+        toast.info('Gateway pembayaran sedang sibuk', 'Selesaikan via transfer manual.');
         return;
       }
 
@@ -179,6 +194,49 @@ export default function BookingForm({ provider, feeRule }: BookingFormProps) {
   }
 
   const bookingName = session?.user?.name ?? session?.user?.phone ?? 'Akun Anda';
+
+  // Gateway-down fallback view: booking is already saved, show bank instructions.
+  if (manual) {
+    return (
+      <div className="mx-auto max-w-xl rounded-2xl border border-border bg-card p-6 shadow-card sm:p-8">
+        <Badge variant="info">Transfer Manual</Badge>
+        <h2 className="mt-3 text-xl font-bold text-foreground">Selesaikan Pembayaran DP</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Gateway pembayaran sedang sibuk, jadi booking Anda diselesaikan via transfer bank.
+          Booking sudah tersimpan dan akan otomatis aktif setelah pembayaran kami konfirmasi.
+        </p>
+
+        <dl className="mt-5 space-y-2.5 rounded-xl bg-muted/40 p-4 text-sm">
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Bank</dt>
+            <dd className="font-semibold text-foreground">{manual.bankName}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">No. Rekening</dt>
+            <dd className="font-mono font-semibold text-foreground">{manual.accountNumber}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">Atas Nama</dt>
+            <dd className="font-semibold text-foreground">{manual.accountHolder}</dd>
+          </div>
+          <div className="flex justify-between border-t border-border pt-2.5">
+            <dt className="font-semibold text-foreground">Jumlah Transfer</dt>
+            <dd className="font-bold text-primary">{formatCurrency(manual.transferAmount)}</dd>
+          </div>
+        </dl>
+
+        <ol className="mt-4 list-decimal space-y-1.5 pl-5 text-sm text-muted-foreground">
+          {manual.instructions.map((line, i) => (
+            <li key={i}>{line}</li>
+          ))}
+        </ol>
+
+        <Button size="lg" className="mt-6 w-full" onClick={() => router.push('/dashboard')}>
+          Selesai — Lihat di Dashboard
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-8 lg:grid-cols-5">

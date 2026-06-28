@@ -28,7 +28,9 @@ export async function POST(req: Request) {
         phone: session.user.phone ?? null,
         email: session.user.email ?? null,
       },
-      deviceIdFrom(req)
+      deviceIdFrom(req),
+      // Idempotency-Key header makes a retried POST safe (no duplicate booking).
+      { idempotencyKey: req.headers.get('idempotency-key') }
     );
 
     return ok(result, 201);
