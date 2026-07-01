@@ -19,6 +19,10 @@ guidance live here so the code can stay lean and self-describing.
 A source file at `src/<path>/<name>.<ext>` maps to `docs-engineering/mappings/<name>.md`.
 When the file's exported surface changes, its mapping doc changes in the same commit.
 
+App Router files share basenames (`route.ts`, `page.tsx`, `layout.tsx`), so those
+use a qualified slug that encodes enough of the path to be unique — e.g.
+`src/app/api/ai/chat/route.ts` → `mappings/ai-chat-route.md`.
+
 ## Comment policy
 
 The target is self-explanatory code with externalized prose. The deliberate

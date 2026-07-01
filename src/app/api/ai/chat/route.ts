@@ -22,7 +22,6 @@ interface ChatPayload {
   providers: SearchedProvider[];
 }
 
-/** Drop control chars, collapse whitespace, and cap length. */
 function sanitize(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
   let clean = '';
@@ -58,7 +57,6 @@ export async function POST(req: Request) {
     const session = await getSession();
     const userId = session?.user?.id ?? null;
 
-    // Rate limit per session id (or IP for anonymous): 20 requests / minute.
     const sessionId: string | undefined =
       typeof body.sessionId === 'string' && body.sessionId.length <= 64 ? body.sessionId : undefined;
     const limiterKey = `ai:chat:${sessionId ?? clientIp(req)}`;
@@ -70,12 +68,6 @@ export async function POST(req: Request) {
     const filters = extractFilters(message);
     const history = asHistory(body.history);
 
-    // Cache identical (message + filters + conversation history) responses for 5
-    // minutes. History MUST be part of the key: the assistant is multi-turn, so a
-    // short follow-up like "iya" or "udah lama" means different things in
-    // different conversations — keying on the message alone would return one
-    // user's contextual reply to another. Empty-history turns (the suggested
-    // chips) still dedupe across users, which is where caching pays off.
     const cacheKey = `ai:chat:${createHash('sha256')
       .update(`${message}|${JSON.stringify(filters)}|${JSON.stringify(history)}`)
       .digest('hex')}`;
@@ -94,8 +86,6 @@ export async function POST(req: Request) {
       await cacheSet(cacheKey, payload, CACHE_TTL_SECONDS);
     }
 
-    // Persist the conversation (anonymous allowed). Never let a client append to
-    // a session owned by a different user.
     const turns = [
       { role: 'user', content: message },
       { role: 'assistant', content: payload.recommendation.pesan },
@@ -108,7 +98,7 @@ export async function POST(req: Request) {
           select: { messages: true, userId: true },
         });
         if (existing && existing.userId && existing.userId !== userId) {
-          resolvedSessionId = undefined; // not yours → start a fresh session
+          resolvedSessionId = undefined;
         } else {
           const prev = Array.isArray(existing?.messages) ? (existing!.messages as unknown[]) : [];
           const next = [...prev, ...turns].slice(-50) as Prisma.InputJsonValue;
@@ -126,7 +116,6 @@ export async function POST(req: Request) {
         resolvedSessionId = created.id;
       }
     } catch (e) {
-      // Persistence is best-effort — never fail the chat over a write hiccup.
       logEvent('ai.chat.persist_failed', { error: String(e) }, 'warn');
     }
 

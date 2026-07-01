@@ -1,7 +1,7 @@
 # Externalize documentation; restrict (not ban) inline comments
 
 - **Date:** 2026-06-29
-- **Status:** Proposed (awaiting scope decision on existing code)
+- **Status:** Superseded by [2026-07-01-full-comment-strip-scope](2026-07-01-full-comment-strip-scope.md) — the deferred scope decision was made: full strip of existing code, with the rationale migrated into the mapping docs.
 - **Area:** Whole codebase, documentation strategy
 
 ## Decision

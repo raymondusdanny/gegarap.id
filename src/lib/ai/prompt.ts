@@ -1,13 +1,3 @@
-/**
- * Prompt construction + output contract for the AI assistant (System 4).
- *
- * The system prompt holds the stable role/instructions; the retrieved provider
- * shortlist is injected into the user turn (it varies per request). The JSON
- * shape is enforced structurally via `RECOMMENDATION_SCHEMA` (Anthropic
- * structured outputs) so we never hand-parse free-form text — the schema is the
- * source of truth and the system prompt only documents field semantics.
- */
-
 import type { SearchedProvider } from './search';
 
 export interface ChatRecommendationItem {
@@ -27,7 +17,6 @@ export interface ChatRecommendation {
   cta: string;
 }
 
-/** JSON Schema for Anthropic structured outputs (output_config.format). */
 export const RECOMMENDATION_SCHEMA = {
   type: 'object',
   additionalProperties: false,
@@ -91,7 +80,6 @@ FORMAT OUTPUT (JSON, sudah dipandu skema — selalu isi keempat field):
 - "catatan": tips singkat opsional (boleh string kosong).
 - "cta": ajakan lembut ke langkah berikutnya, santai dan tidak agresif (boleh string kosong saat masih menggali masalah).`;
 
-/** Build the per-request user turn: provider context + the user's question. */
 export function buildUserTurn(query: string, providers: SearchedProvider[]): string {
   const context =
     providers.length === 0
@@ -115,11 +103,6 @@ export function buildUserTurn(query: string, providers: SearchedProvider[]): str
   return `DATA TUKANG TERSEDIA:\n${context}\n\nPERMINTAAN PENGGUNA:\n"${query}"`;
 }
 
-/**
- * Deterministic fallback used when Claude is unavailable (no API key, or an
- * error). Still returns a useful, grounded result from the RAG shortlist so the
- * feature degrades instead of breaking — mirrors the Midtrans/email no-op pattern.
- */
 export function fallbackRecommendation(
   query: string,
   providers: SearchedProvider[]

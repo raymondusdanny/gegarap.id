@@ -16,19 +16,23 @@ unavailable.
   (no embeddings).
 - Produce a structured, grounded answer with the model, or a deterministic
   fallback ranking.
+- Converse diagnose-first: ask a follow-up when the request is vague, keep
+  `rekomendasi` empty while gathering context, and surface providers only once
+  the need is clear (see [prompt.md](../mappings/prompt.md)).
 - Score for fraud/quality signals and persist the conversation.
 
 ## Key files
 
-| File | Role | Mapping |
-|------|------|---------|
-| `src/lib/ai/chat.ts` | Orchestration of a chat turn | _to add_ |
-| `src/lib/ai/extract.ts` | Message → structured intent | _to add_ |
-| `src/lib/ai/search.ts` | Filter + keyword retrieval | _to add_ |
-| `src/lib/ai/fraud.ts` | Fraud/quality scoring + badge | _to add_ |
-| `src/lib/ai/prompt.ts` | Prompt construction | _to add_ |
-| `src/lib/cache.ts` | Upstash response cache | _to add_ |
-| `src/app/api/ai/chat/route.ts` | HTTP entry | _to add_ |
+| File | Role | Mapping | Code stripped |
+|------|------|---------|---------------|
+| `src/lib/ai/chat.ts` | Orchestration of a chat turn | [chat.md](../mappings/chat.md) | ✅ |
+| `src/lib/ai/prompt.ts` | Prompt construction + diagnose-first persona | [prompt.md](../mappings/prompt.md) | ✅ |
+| `src/app/api/ai/chat/route.ts` | HTTP entry | [ai-chat-route.md](../mappings/ai-chat-route.md) | ✅ |
+| `src/lib/ai/extract.ts` | Message → structured intent | _to add_ | ⬜ |
+| `src/lib/ai/search.ts` | Filter + keyword retrieval | _to add_ | ⬜ |
+| `src/lib/ai/fraud.ts` | Fraud/quality scoring + badge | _to add_ | ⬜ |
+| `src/lib/cache.ts` | Upstash response cache | _to add_ | ⬜ |
+| `src/components/ai/AiChat.tsx` | Chat UI (client) | _to add_ | ⬜ |
 
 ## Data flow
 

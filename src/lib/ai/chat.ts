@@ -1,13 +1,3 @@
-/**
- * Claude call for the AI assistant (System 4).
- *
- * Uses the Anthropic SDK with `claude-sonnet-4-6` and STRUCTURED OUTPUTS
- * (output_config.format) so the JSON contract is guaranteed by the API rather
- * than fragile prompt-parsing. Without `ANTHROPIC_API_KEY` — or on any error —
- * it returns a deterministic, grounded fallback built from the RAG shortlist, so
- * the feature degrades gracefully (same pattern as Midtrans/email).
- */
-
 import Anthropic from '@anthropic-ai/sdk';
 import { logEvent } from '@/lib/logger';
 import {
@@ -22,7 +12,6 @@ import type { SearchedProvider } from './search';
 const MODEL = 'claude-sonnet-4-6';
 const apiKey = process.env.ANTHROPIC_API_KEY;
 
-/** Whether a real Anthropic key is present. */
 export const isAIConfigured = Boolean(apiKey);
 
 export interface ChatTurn {
@@ -32,7 +21,6 @@ export interface ChatTurn {
 
 export interface RecommendationResult {
   recommendation: ChatRecommendation;
-  /** True when produced by the deterministic fallback (no LLM call). */
   mock: boolean;
 }
 
@@ -50,7 +38,6 @@ export async function generateRecommendation(input: {
   try {
     const client = new Anthropic({ apiKey: apiKey! });
     const messages: Anthropic.MessageParam[] = [
-      // Cap history to the last 6 turns to keep token cost predictable.
       ...history.slice(-6).map((t) => ({ role: t.role, content: t.content })),
       { role: 'user', content: buildUserTurn(query, providers) },
     ];
@@ -58,7 +45,7 @@ export async function generateRecommendation(input: {
     const res = await client.messages.create({
       model: MODEL,
       max_tokens: 1536,
-      thinking: { type: 'disabled' }, // snappy chat; structured output does the shaping
+      thinking: { type: 'disabled' },
       system: SYSTEM_PROMPT,
       messages,
       output_config: { format: { type: 'json_schema', schema: RECOMMENDATION_SCHEMA } },
