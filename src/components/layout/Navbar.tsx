@@ -12,6 +12,7 @@ import {
   Briefcase,
   BookOpen,
   Bot,
+  Calculator,
   LayoutDashboard,
   ClipboardList,
   LogOut,
@@ -25,6 +26,7 @@ import { buttonVariants } from '@/components/ui/Button';
 const links = [
   { href: '/artikel', label: 'Artikel', icon: BookOpen },
   { href: '/asisten', label: 'Asisten AI', icon: Bot },
+  { href: '/tools/material-calculator', label: 'Kalkulator', icon: Calculator },
   { href: '/search', label: 'Cari Tukang', icon: Search },
   { href: '/onboarding', label: 'Jadi Mitra', icon: Briefcase },
 ];

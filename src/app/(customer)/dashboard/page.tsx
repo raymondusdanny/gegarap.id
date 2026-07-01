@@ -4,6 +4,7 @@ import prisma from '@/lib/prisma';
 import { getSession } from '@/lib/firebase/session';
 import { CustomerBookings, type CustomerBooking } from '@/components/dashboard/CustomerBookings';
 import { CompleteWhatsAppPrompt } from '@/components/dashboard/CompleteWhatsAppPrompt';
+import { ToolsSection } from '@/components/dashboard/ToolsSection';
 import { isContactUnlocked } from '@/lib/authz';
 
 export const metadata: Metadata = { title: 'Dashboard Saya' };
@@ -55,6 +56,8 @@ export default async function CustomerDashboard() {
 
       {/* Non-blocking nudge for accounts (e.g. Google sign-ups) without a WA number. */}
       {!session.user.phone && <CompleteWhatsAppPrompt />}
+
+      <ToolsSection />
 
       <CustomerBookings bookings={bookings} />
     </div>

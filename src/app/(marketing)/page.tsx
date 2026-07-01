@@ -8,6 +8,7 @@ import {
   UserCheck,
   CalendarCheck,
   Wallet,
+  Calculator,
 } from 'lucide-react';
 import prisma from '@/lib/prisma';
 import { buttonVariants } from '@/components/ui/Button';
@@ -93,6 +94,36 @@ export default async function MarketingHome() {
 
       {/* ===== Categories ===== */}
       <CategoryGrid />
+
+      {/* ===== Free tool: material calculator ===== */}
+      <section className="container pb-4 pt-8">
+        <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-card">
+          <div className="flex flex-col items-center gap-6 p-8 sm:flex-row sm:p-10">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-glow">
+              <Calculator className="h-8 w-8" />
+            </span>
+            <div className="flex-1 text-center sm:text-left">
+              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Gratis · tanpa login
+              </span>
+              <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+                Kalkulator Material Konstruksi
+              </h2>
+              <p className="mt-2 text-muted-foreground">
+                Hitung kebutuhan semen, pasir, batu, keramik & cat lengkap dengan estimasi biaya —
+                lalu langsung cari tukang untuk mengerjakannya.
+              </p>
+            </div>
+            <Link
+              href="/tools/material-calculator"
+              className={buttonVariants({ variant: 'primary', size: 'lg', className: 'shrink-0' })}
+            >
+              Coba Sekarang
+              <ArrowRight className="h-5 w-5" />
+            </Link>
+          </div>
+        </Reveal>
+      </section>
 
       {/* ===== Features ===== */}
       <section className="container py-20">
