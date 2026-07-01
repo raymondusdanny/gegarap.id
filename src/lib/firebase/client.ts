@@ -1,10 +1,13 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 
 /**
  * Firebase **client** SDK (browser). Used by the login/register UI and the auth
- * context. Only the public `NEXT_PUBLIC_*` config is needed — these values are
+ * context — **Auth only**. Firestore is never accessed from the browser (all
+ * user reads/writes go through server routes backed by firebase-admin), so the
+ * `firebase/firestore` SDK is intentionally NOT imported here: pulling it in
+ * would drag ~90 kB of dead Firestore code into every auth/dashboard client
+ * chunk. Only the public `NEXT_PUBLIC_*` config is needed — these values are
  * safe to ship to the client (access is governed by Firestore security rules,
  * not by hiding the apiKey).
  *
@@ -23,15 +26,14 @@ const firebaseConfig = {
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
 
-// Point the client SDK at the local emulators in dev. Guarded so HMR / repeated
-// imports don't try to connect twice (which throws).
+// Point the client SDK at the local Auth emulator in dev. Guarded so HMR /
+// repeated imports don't try to connect twice (which throws). Firestore's
+// emulator is wired server-side (firebase-admin), not here.
 if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATOR === 'true') {
   const g = globalThis as typeof globalThis & { __FB_EMULATORS__?: boolean };
   if (!g.__FB_EMULATORS__) {
     connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
-    connectFirestoreEmulator(db, '127.0.0.1', 8080);
     g.__FB_EMULATORS__ = true;
   }
 }

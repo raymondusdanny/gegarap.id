@@ -41,6 +41,32 @@ const nextConfig = {
   // and microphone (verified unused); geolocation/payment are left permissive so
   // the map and Midtrans Snap keep working.
   async headers() {
+    // Stage 1 of a staged CSP: REPORT-ONLY. It never blocks — browsers only POST
+    // violations to /api/csp-report — so it cannot break checkout/auth while we
+    // learn what an enforcing policy would reject. Shipped as a plain response
+    // header (not an RSC nonce), so it stays compatible with the ISR/static
+    // pages. 'unsafe-inline' is intentional for this stage: Next's App Router
+    // emits inline bootstrap/hydration scripts and libraries inject inline
+    // styles; going nonce-based would force every page dynamic and undo the
+    // static caching. Origins allow-listed from actual usage: OpenStreetMap
+    // tiles, Supabase (photos/KTP), Google user-content (OAuth avatars),
+    // Firebase Auth, and Midtrans Snap (sandbox + prod).
+    const cspReportOnly = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      "script-src 'self' 'unsafe-inline' https://apis.google.com https://app.midtrans.com https://app.sandbox.midtrans.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://*.googleusercontent.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.googleapis.com https://*.supabase.co https://*.midtrans.com",
+      "frame-src 'self' https://*.firebaseapp.com https://accounts.google.com https://app.midtrans.com https://app.sandbox.midtrans.com",
+      "worker-src 'self' blob:",
+      'report-uri /api/csp-report',
+    ].join('; ');
+
     const securityHeaders = [
       { key: 'Cross-Origin-Opener-Policy', value: 'same-origin-allow-popups' },
       { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
@@ -49,6 +75,7 @@ const nextConfig = {
       { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
       { key: 'X-DNS-Prefetch-Control', value: 'on' },
       { key: 'Permissions-Policy', value: 'camera=(), microphone=()' },
+      { key: 'Content-Security-Policy-Report-Only', value: cspReportOnly },
     ];
     return [{ source: '/:path*', headers: securityHeaders }];
   },
